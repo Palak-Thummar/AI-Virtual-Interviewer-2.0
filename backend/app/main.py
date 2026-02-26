@@ -10,8 +10,6 @@ from app.core.config import settings, get_available_models_formatted
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api.endpoints import auth, resume, interview, interviews, analytics, answer_lab, coding, career_intelligence, settings as settings_endpoint
 from app.api.dependencies import get_current_user
-import requests
-import json
 
 # Create FastAPI app
 app = FastAPI(
@@ -24,6 +22,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]

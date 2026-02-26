@@ -1,4 +1,4 @@
-    # AI Placement Preparation Platform
+# AI Placement Preparation Platform
 
 Production-ready full-stack platform for interview preparation with AI-powered interview generation, session evaluation, career intelligence, coding practice, answer lab, resume tools, and a modular settings system.
 
@@ -11,6 +11,8 @@ Production-ready full-stack platform for interview preparation with AI-powered i
 ## New Here?
 
 Use the step-by-step Windows clone/run guide: [FRIEND_SETUP_GUIDE.md](FRIEND_SETUP_GUIDE.md)
+
+For deployment setup: [DEPLOY_QUICK.md](DEPLOY_QUICK.md)
 
 ## Repository Structure
 

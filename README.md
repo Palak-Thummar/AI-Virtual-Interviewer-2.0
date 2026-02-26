@@ -1,4 +1,4 @@
-# AI Placement Preparation Platform
+    # AI Placement Preparation Platform
 
 Production-ready full-stack platform for interview preparation with AI-powered interview generation, session evaluation, career intelligence, coding practice, answer lab, resume tools, and a modular settings system.
 
@@ -51,6 +51,13 @@ After first-time setup, run this from repo root:
 ```bash
 start-dev.bat
 ```
+
+## Render Deploy Note (Important)
+
+If Render build fails on `pydantic-core` / Rust during install, force Python `3.12.8`.
+
+- This repo includes `backend/runtime.txt` and `backend/.python-version`.
+- In Render service settings, also set env var: `PYTHON_VERSION=3.12.8`.
 
 ## Environment Configuration
 

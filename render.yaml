@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: ai-virtual-interviewer-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: APP_NAME
+        value: AI Virtual Interviewer
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: DEBUG
+        value: "False"
+      - key: MONGODB_URL
+        sync: false
+      - key: MONGODB_DB
+        value: ai_interviewer
+      - key: SECRET_KEY
+        sync: false
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL_NAME
+        value: nvidia/nemotron-3-nano-30b-a3b:free
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: MAX_FILE_SIZE
+        value: "10485760"
+      - key: CORS_ORIGINS
+        sync: false

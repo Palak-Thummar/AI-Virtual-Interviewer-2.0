@@ -1,0 +1,272 @@
+.layout {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 272px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-right: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: transform 300ms ease, width 300ms ease;
+  z-index: 60;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+}
+
+.brandBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 24px -12px rgba(99, 102, 241, 0.65);
+  color: #fff;
+}
+
+.brandTitle {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #f8fafc;
+}
+
+.brandSub {
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 300ms ease;
+}
+
+.navLink:hover {
+  color: #f8fafc;
+  background: rgba(99, 102, 241, 0.14);
+  transform: translateX(2px);
+}
+
+.navLinkActive {
+  background: rgba(99, 102, 241, 0.24);
+  color: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.32);
+}
+
+.contentArea {
+  margin-left: 272px;
+  min-height: 100vh;
+  transition: margin-left 300ms ease;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 72px;
+  background: rgba(248, 250, 252, 0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 8px 24px -22px rgba(15, 23, 42, 0.35);
+}
+
+.topbarInner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+}
+
+.title {
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  display: grid;
+  place-items: center;
+  transition: all 300ms ease;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.45);
+}
+
+.profileButton {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 300ms ease;
+  cursor: pointer;
+}
+
+.profileButton:hover {
+  box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.45);
+}
+
+.profileMenuWrap {
+  position: relative;
+}
+
+.profileMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 180px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.5);
+  padding: 8px;
+}
+
+.menuItem {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  color: #ef4444;
+  font-weight: 600;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 300ms ease;
+}
+
+.menuItem:hover {
+  background: #fef2f2;
+}
+
+.mobileToggle {
+  display: none;
+}
+
+.main {
+  padding: 28px 24px 36px;
+}
+
+.mainInner {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  animation: fadeIn 320ms ease;
+}
+
+.backdrop {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .contentArea {
+    margin-left: 0;
+  }
+
+  .mobileToggle {
+    display: inline-grid;
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.42);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 300ms ease;
+    z-index: 55;
+  }
+
+  .backdropShow {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbarInner {
+    padding: 0 14px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .main {
+    padding: 18px 14px 28px;
+  }
+}

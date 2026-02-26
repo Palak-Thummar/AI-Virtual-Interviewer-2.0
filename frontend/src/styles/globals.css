@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply min-h-full;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+}
+
+@layer components {
+  .app-container {
+    @apply mx-auto w-full max-w-6xl px-6;
+  }
+
+  .surface-card {
+    @apply rounded-2xl border border-slate-200/70 bg-white shadow-card;
+  }
+
+  .page-shell {
+    @apply min-h-[calc(100vh-4rem)] py-16 opacity-0 animate-fade-in;
+  }
+
+  .headline-1 {
+    @apply text-4xl font-bold tracking-tight text-slate-800;
+  }
+
+  .headline-2 {
+    @apply text-2xl font-semibold text-slate-800;
+  }
+
+  .body-text {
+    @apply text-base text-slate-600;
+  }
+}

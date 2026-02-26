@@ -1,0 +1,278 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 30px;
+  color: #0f172a;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.summaryStrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summaryItem,
+.card,
+.loadingCard,
+.errorCard,
+.emptyCard {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 16px 32px -26px rgba(15, 23, 42, 0.32);
+}
+
+.summaryItem {
+  padding: 14px;
+}
+
+.summaryItem span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.summaryItem strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.card {
+  padding: 16px;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.chartWrap {
+  height: 280px;
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-size: 14px;
+}
+
+.table th {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.table tbody tr {
+  transition: background-color 200ms ease;
+}
+
+.table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.statusCompleted {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.statusPending {
+  color: #854d0e;
+  background: #fef9c3;
+}
+
+.primaryButton,
+.secondaryButton,
+.iconButton {
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 260ms ease;
+}
+
+.primaryButton {
+  background: #6366f1;
+  color: #fff;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+.secondaryButton {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loadingCard,
+.errorCard,
+.emptyCard {
+  min-height: 170px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  color: #475569;
+}
+
+.spin {
+  color: #6366f1;
+  animation: spin 1s linear infinite;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 60;
+  padding: 16px;
+}
+
+.modal {
+  width: min(620px, 100%);
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 40px 60px -40px rgba(15, 23, 42, 0.65);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.iconButton {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.modalBody {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #334155;
+}
+
+.breakdownBlock,
+.textBlock {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.breakdownBlock h4,
+.textBlock h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.breakdownBlock ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.breakdownBlock li {
+  display: flex;
+  justify-content: space-between;
+  color: #334155;
+  font-size: 14px;
+}
+
+.textBlock p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1100px) {
+  .summaryStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .summaryStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .table {
+    min-width: 640px;
+  }
+}

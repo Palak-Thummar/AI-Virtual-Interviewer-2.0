@@ -1,0 +1,187 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.input,
+.select,
+.fileInput {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  padding: 10px 12px;
+  outline: none;
+  font-size: 14px;
+}
+
+.input:focus,
+.select:focus,
+.fileInput:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.14);
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skillTag {
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 220ms ease;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+.primaryButton {
+  background: #6366f1;
+  color: #fff;
+}
+
+.secondaryButton {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.dangerButton {
+  background: #dc2626;
+  color: #fff;
+}
+
+.note {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.messageSuccess,
+.messageError {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.messageSuccess {
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+}
+
+.messageError {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+}
+
+.dropZone {
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  color: #475569;
+  cursor: pointer;
+  transition: all 220ms ease;
+}
+
+.dropZone:hover {
+  border-color: #6366f1;
+  background: #f8fafc;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 16px;
+}
+
+.modal {
+  width: min(440px, 100%);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  box-shadow: 0 40px 60px -40px rgba(15, 23, 42, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 780px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    flex: 1;
+  }
+}

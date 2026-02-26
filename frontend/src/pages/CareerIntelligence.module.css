@@ -1,0 +1,302 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 320ms ease;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 30px;
+  color: #0f172a;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.kpiCard,
+.card,
+.errorCard,
+.emptyState,
+.skeletonCard,
+.skeletonChart,
+.skeletonHero {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 16px 32px -26px rgba(15, 23, 42, 0.35);
+}
+
+.kpiCard {
+  padding: 18px;
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px -24px rgba(15, 23, 42, 0.45);
+}
+
+.kpiValue {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.kpiLabel {
+  margin: 8px 0 0;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.kpiNote {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.card {
+  padding: 20px;
+}
+
+.card h2 {
+  margin: 0 0 14px;
+  color: #1e293b;
+  font-size: 18px;
+}
+
+.readinessWrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.readinessRing {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+
+.readinessSvg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.readinessTrack {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 10;
+}
+
+.readinessProgress {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dasharray 300ms ease;
+}
+
+.readinessGood {
+  stroke: #10b981;
+}
+
+.readinessMedium {
+  stroke: #f59e0b;
+}
+
+.readinessLow {
+  stroke: #ef4444;
+}
+
+.readinessCenter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.readinessText {
+  margin: 0;
+  color: #64748b;
+  max-width: 220px;
+}
+
+.strengthGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.skillCard {
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid;
+}
+
+.skillCard span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.skillCard strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.skillStrong {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.skillWeak {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.chartBox {
+  height: 300px;
+  width: 100%;
+}
+
+.recommendationList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recommendationList li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #334155;
+}
+
+.recommendationList li svg {
+  margin-top: 2px;
+  color: #6366f1;
+}
+
+.errorCard,
+.emptyState {
+  padding: 24px;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #eef2ff;
+  color: #6366f1;
+}
+
+.primaryButton {
+  border: 0;
+  border-radius: 12px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 300ms ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+  background: #575af0;
+}
+
+.skeletonWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeletonHero {
+  height: 90px;
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.skeletonCard {
+  height: 110px;
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.skeletonChart {
+  height: 280px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1100px) {
+  .kpiGrid,
+  .skeletonGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .twoColumn,
+  .skeletonRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .kpiGrid,
+  .skeletonGrid,
+  .strengthGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .readinessWrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

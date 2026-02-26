@@ -1,0 +1,333 @@
+/**
+ * Results Page Styles
+ */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+}
+
+/* Score Section */
+.scoreSection {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.scoreCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  min-height: 250px;
+}
+
+.scoreCircle {
+  text-align: center;
+}
+
+.score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  font-size: 3rem;
+  font-weight: 700;
+  margin: 0 auto 1rem;
+}
+
+.score-error {
+  background: #fff5f5;
+  color: #f56565;
+  border: 3px solid #f56565;
+}
+
+.score-warning {
+  background: #fffaf0;
+  color: #f6ad55;
+  border: 3px solid #f6ad55;
+}
+
+.score-success {
+  background: #f0fff4;
+  color: #48bb78;
+  border: 3px solid #48bb78;
+}
+
+.scoreLabel {
+  display: block;
+  color: #718096;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.infoCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.infoCard h2 {
+  margin: 0;
+  color: #2d3748;
+}
+
+.domain {
+  display: block;
+  color: #718096;
+  font-weight: 500;
+  font-size: 1.1rem;
+}
+
+.badges {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Analysis Card */
+.analysisCard {
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border: 1px solid #cbd5e0;
+}
+
+.sectionTitle {
+  color: #2d3748;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #718096;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.metric {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+}
+
+.metricLabel {
+  display: block;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.metricValue {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-top: 0.5rem;
+}
+
+.skillsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.count {
+  display: block;
+  font-size: 0.875rem;
+  color: #a0aec0;
+  margin-top: 0.75rem;
+}
+
+.experienceGap {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid #667eea;
+  display: flex;
+  gap: 1rem;
+}
+
+.label {
+  font-weight: 600;
+  color: #2d3748;
+  min-width: 140px;
+}
+
+/* Suggestions Card */
+.suggestionsCard {
+  margin-bottom: 2rem;
+}
+
+.suggestionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+}
+
+.suggestionGroup {
+  background: #f7fafc;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border-left: 4px solid #667eea;
+}
+
+.suggestionGroup h4 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.suggestionGroup ul {
+  list-style: none;
+  padding: 0;
+}
+
+.suggestionGroup li {
+  color: #4a5568;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+  padding-left: 0;
+}
+
+/* Performance Card */
+.performanceCard {
+  margin-bottom: 2rem;
+}
+
+.questionResult {
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  background: #f7fafc;
+  border-radius: 0.75rem;
+  border-left: 4px solid #667eea;
+}
+
+.questionHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.qIndex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.scoreBar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.qScore {
+  min-width: 60px;
+  text-align: right;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.feedback {
+  color: #4a5568;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.strengths {
+  padding: 0.75rem;
+  background: #f0fff4;
+  border-left: 3px solid #48bb78;
+  color: #22543d;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.improvements {
+  padding: 0.75rem;
+  background: #fffaf0;
+  border-left: 3px solid #f6ad55;
+  color: #7c2d12;
+  border-radius: 0.25rem;
+  font-size: 0.95rem;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.actions button {
+  flex: 1;
+  max-width: 300px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .scoreSection {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreCard {
+    min-height: 200px;
+  }
+
+  .score {
+    width: 100px;
+    height: 100px;
+    font-size: 2.5rem;
+  }
+
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .suggestionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    max-width: 100%;
+  }
+}

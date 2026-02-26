@@ -1,0 +1,276 @@
+/**
+ * Interview Setup Page Styles
+ */
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: #718096;
+}
+
+/* Steps */
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.steps::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 1;
+  color: #a0aec0;
+  font-weight: 600;
+}
+
+.step.active {
+  color: #667eea;
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #e2e8f0;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.step.active .stepNumber {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+/* Card */
+.card {
+  margin-bottom: 2rem;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card h2 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.description {
+  color: #718096;
+  margin-bottom: 2rem;
+}
+
+/* Upload Area */
+.uploadArea {
+  margin: 2rem 0;
+}
+
+.uploadLabel {
+  display: block;
+  cursor: pointer;
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 2rem;
+  border: 2px dashed #cbd5e0;
+  border-radius: 1rem;
+  background: #f7fafc;
+  transition: all 0.2s ease;
+}
+
+.uploadLabel:hover .uploadContent {
+  border-color: #667eea;
+  background: #edf2f7;
+}
+
+.uploadIcon {
+  font-size: 3rem;
+}
+
+.uploadText {
+  font-weight: 600;
+  color: #2d3748;
+  text-align: center;
+}
+
+.uploadNote {
+  font-size: 0.875rem;
+  color: #a0aec0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: #edf2f7;
+  border-radius: 0.75rem;
+  color: #667eea;
+}
+
+.success {
+  padding: 1rem;
+  background: #f0fff4;
+  border-left: 4px solid #48bb78;
+  border-radius: 0.5rem;
+  color: #22543d;
+  font-weight: 600;
+}
+
+/* Review Info */
+.reviewInfo {
+  display: flex;
+  gap: 1rem;
+  margin: 1.5rem 0 2rem 0;
+  flex-wrap: wrap;
+}
+
+/* Analysis Card */
+.analysisCard {
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border: 1px solid #cbd5e0;
+  margin-bottom: 2rem;
+}
+
+.analysisCard h3 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.analysisNote {
+  color: #718096;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.analysisGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.analysisItem {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+}
+
+.analysisItem .label {
+  font-size: 0.875rem;
+  color: #718096;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.analysisItem .value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.actions button {
+  flex: 1;
+  max-width: 300px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.75rem;
+  }
+
+  .steps {
+    gap: 1rem;
+  }
+
+  .stepNumber {
+    width: 35px;
+    height: 35px;
+    font-size: 0.9rem;
+  }
+
+  .analysisGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    max-width: 100%;
+  }
+}

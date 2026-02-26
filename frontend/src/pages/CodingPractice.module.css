@@ -1,0 +1,358 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.splitLayout {
+  display: grid;
+  grid-template-columns: 30% 70%;
+  gap: 16px;
+  min-height: calc(100vh - 180px);
+}
+
+.problemPanel,
+.problemDetails,
+.editorCard,
+.resultCard,
+.emptyState {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.4);
+}
+
+.problemPanel {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.problemPanel h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.problemList {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.problemItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 300ms ease;
+}
+
+.problemItem:hover {
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.45);
+}
+
+.problemItemActive {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+.problemTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.problemTitle {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mainPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.problemDetails {
+  padding: 16px;
+}
+
+.detailsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detailsHeader h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.description {
+  margin: 10px 0 0;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.examplesSection {
+  margin-top: 14px;
+}
+
+.examplesSection h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: #1e293b;
+}
+
+.exampleCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.exampleCard p {
+  margin: 0 0 5px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.exampleCard p:last-child {
+  margin-bottom: 0;
+}
+
+.editorCard {
+  overflow: hidden;
+}
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.languageSelect {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 12px;
+  min-width: 150px;
+  outline: none;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 300ms ease;
+}
+
+.primaryButton {
+  background: #6366f1;
+  color: #fff;
+}
+
+.secondaryButton {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.resultCard {
+  padding: 14px;
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.resultBadge {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resultPassed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.resultFailed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.execTime {
+  color: #475569;
+  font-size: 13px;
+}
+
+.tableWrap {
+  overflow: auto;
+}
+
+.resultTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.resultTable th,
+.resultTable td {
+  text-align: left;
+  padding: 9px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
+.resultTable th {
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 11px;
+}
+
+.rowPassed {
+  background: #f0fdf4;
+}
+
+.rowFailed {
+  background: #fef2f2;
+}
+
+.statusPill {
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.statusPassed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusFailed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badgeEasy {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badgeMedium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgeHard {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.loadingState,
+.emptyState {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  color: #475569;
+  padding: 20px;
+}
+
+.spinner {
+  color: #6366f1;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+.errorBanner {
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1024px) {
+  .splitLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .problemPanel {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  .actionsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+
+  .actionButtons button {
+    flex: 1;
+  }
+}

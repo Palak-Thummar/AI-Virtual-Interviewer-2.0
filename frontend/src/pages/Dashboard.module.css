@@ -1,0 +1,286 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: pageFadeIn 320ms ease;
+}
+
+.hero {
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 18px 36px -26px rgba(15, 23, 42, 0.4);
+  padding: 28px;
+  animation: heroEnter 420ms ease;
+}
+
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.15;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.heroSubtitle {
+  margin: 0;
+  max-width: 720px;
+  color: #475569;
+  font-size: 15px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 0;
+  border-radius: 12px;
+  height: 42px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 300ms ease;
+}
+
+.primaryButton {
+  background: #6366f1;
+  color: #ffffff;
+}
+
+.primaryButton:hover {
+  background: #5558ee;
+  transform: translateY(-2px);
+}
+
+.secondaryButton {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #dbe2ea;
+}
+
+.secondaryButton:hover {
+  background: #f8fafc;
+  transform: translateY(-2px);
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.kpiCard {
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 16px 32px -26px rgba(15, 23, 42, 0.35);
+  padding: 18px;
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px -24px rgba(15, 23, 42, 0.42);
+}
+
+.kpiIconWrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  display: grid;
+  place-items: center;
+}
+
+.kpiValue {
+  margin: 14px 0 6px;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.kpiLabel {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.gridTwo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chartCard,
+.tableCard {
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 16px 32px -26px rgba(15, 23, 42, 0.35);
+  padding: 20px;
+}
+
+.sectionTitle {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.chartWrap {
+  width: 100%;
+  height: 290px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.table thead th {
+  text-align: left;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 8px;
+}
+
+.table tbody td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.table tbody tr {
+  transition: background 300ms ease;
+}
+
+.table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+.statusSuccess {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusWarning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.statusMuted {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 220px;
+  text-align: center;
+}
+
+.emptyIllustration {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.14);
+}
+
+.emptyTitle {
+  margin: 0;
+  color: #475569;
+  font-size: 15px;
+}
+
+@keyframes heroEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1100px) {
+  .kpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gridTwo {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 18px;
+  }
+
+  .heroTitle {
+    font-size: 24px;
+  }
+
+  .kpiGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .chartCard,
+  .tableCard {
+    padding: 16px;
+  }
+
+  .chartWrap {
+    height: 250px;
+  }
+}

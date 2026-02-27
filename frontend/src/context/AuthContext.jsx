@@ -7,7 +7,10 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import axios from 'axios';
 
 const AuthContext = createContext(null);
-const SERVER_BASE = 'http://localhost:8000';
+const SERVER_BASE = (
+  import.meta.env.VITE_API_SERVER_URL ||
+  (import.meta.env.PROD ? 'https://ai-virtual-interviewer-2-0.onrender.com' : 'http://localhost:8000')
+).replace(/\/$/, '');
 const authClient = axios.create({
   baseURL: SERVER_BASE,
   headers: {

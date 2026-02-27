@@ -5,7 +5,10 @@
 
 import axios from 'axios';
 
-const SERVER_BASE = (import.meta.env.VITE_API_SERVER_URL || 'http://localhost:8000').replace(/\/$/, '');
+const SERVER_BASE = (
+  import.meta.env.VITE_API_SERVER_URL ||
+  (import.meta.env.PROD ? 'https://ai-virtual-interviewer-2-0.onrender.com' : 'http://localhost:8000')
+).replace(/\/$/, '');
 const API_BASE = `${SERVER_BASE}/api`;
 
 // Create axios instance

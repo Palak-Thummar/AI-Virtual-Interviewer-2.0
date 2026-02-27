@@ -28,9 +28,24 @@ async def register(user_data: UserRegister):
     """
     
     users_collection = get_collection("users")
+    normalized_email = user_data.email.strip().lower()
+    normalized_name = user_data.name.strip()
+    normalized_password = user_data.password.strip()
+
+    if not normalized_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name cannot be empty"
+        )
+
+    if len(normalized_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters"
+        )
     
     # Check if user exists
-    existing_user = users_collection.find_one({"email": user_data.email})
+    existing_user = users_collection.find_one({"email": normalized_email})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -38,13 +53,13 @@ async def register(user_data: UserRegister):
         )
     
     # Hash password
-    hashed_password = hash_password(user_data.password)
+    hashed_password = hash_password(normalized_password)
     
     # Create user
     user_doc = {
-        "name": user_data.name,
-        "full_name": user_data.name,
-        "email": user_data.email,
+        "name": normalized_name,
+        "full_name": normalized_name,
+        "email": normalized_email,
         "password_hash": hashed_password,
         "primary_role": "",
         "experience_level": "",
@@ -57,14 +72,14 @@ async def register(user_data: UserRegister):
     user_id = str(result.inserted_id)
     
     # Create token
-    access_token = create_access_token({"sub": user_id, "email": user_data.email})
+    access_token = create_access_token({"sub": user_id, "email": normalized_email})
     
     return TokenResponse(
         access_token=access_token,
         user=UserResponse(
             _id=user_id,
             name=user_doc.get("full_name") or user_doc.get("name", ""),
-            email=user_data.email,
+            email=normalized_email,
             created_at=user_doc["created_at"]
         )
     )
@@ -83,9 +98,11 @@ async def login(credentials: UserLogin):
     """
     
     users_collection = get_collection("users")
+    normalized_email = credentials.email.strip().lower()
+    normalized_password = credentials.password.strip()
     
     # Find user
-    user = users_collection.find_one({"email": credentials.email})
+    user = users_collection.find_one({"email": normalized_email})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -93,7 +110,7 @@ async def login(credentials: UserLogin):
         )
     
     # Verify password
-    if not verify_password(credentials.password, user.get("password_hash", "")):
+    if not verify_password(normalized_password, user.get("password_hash", "")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"

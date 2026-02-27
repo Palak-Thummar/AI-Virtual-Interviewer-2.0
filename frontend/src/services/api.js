@@ -6,7 +6,7 @@
 import axios from 'axios';
 
 const PROD_FALLBACK_API = 'https://ai-virtual-interviewer-2-0.onrender.com';
-const configuredBase = (import.meta.env.VITE_API_SERVER_URL || '').trim();
+const configuredBase = (import.meta.env.VITE_API_SERVER_URL || '').trim().replace(/\/api\/?$/i, '');
 const isLocalhostUrl = (url) => /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url);
 
 const SERVER_BASE = (

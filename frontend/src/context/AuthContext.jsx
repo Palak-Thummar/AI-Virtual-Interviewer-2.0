@@ -8,8 +8,28 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 const PROD_FALLBACK_API = 'https://ai-virtual-interviewer-2-0.onrender.com';
-const configuredBase = (import.meta.env.VITE_API_SERVER_URL || '').trim();
+const configuredBase = (import.meta.env.VITE_API_SERVER_URL || '').trim().replace(/\/api\/?$/i, '');
 const isLocalhostUrl = (url) => /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url);
+
+const getAuthErrorMessage = (err, fallback) => {
+  const detail = err?.response?.data?.detail;
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0];
+    if (typeof first === 'string') return first;
+    if (first?.msg) return first.msg;
+  }
+
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
+  }
+
+  if (err?.response?.status === 400) return 'Invalid request. Please check your input.';
+  if (err?.response?.status === 401) return 'Invalid email or password.';
+  if (err?.response?.status === 409) return 'Email already registered.';
+
+  return fallback;
+};
 
 const SERVER_BASE = (
   import.meta.env.PROD && (!configuredBase || isLocalhostUrl(configuredBase))
@@ -71,9 +91,9 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await authClient.post('/api/auth/register', {
-        name,
-        email,
-        password
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password: password.trim()
       });
       
       const { access_token, user } = response.data;
@@ -83,7 +103,7 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true, user };
     } catch (err) {
-      const message = err.response?.data?.detail || 'Registration failed';
+      const message = getAuthErrorMessage(err, 'Registration failed');
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -97,8 +117,8 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await authClient.post('/api/auth/login', {
-        email,
-        password
+        email: email.trim().toLowerCase(),
+        password: password.trim()
       });
       
       const { access_token, user } = response.data;
@@ -108,7 +128,7 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true, user };
     } catch (err) {
-      const message = err.response?.data?.detail || 'Login failed';
+      const message = getAuthErrorMessage(err, 'Login failed');
       setError(message);
       return { success: false, error: message };
     } finally {

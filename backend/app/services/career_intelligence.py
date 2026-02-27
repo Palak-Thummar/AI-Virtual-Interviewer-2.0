@@ -68,10 +68,10 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
     )
 
     completed_interviews = [item for item in interviews if item.get("status") == "completed"]
-    total_interviews = len(interviews)
     completed_count = len(completed_interviews)
-    pending_count = total_interviews - completed_count
-    completion_rate = round((completed_count / total_interviews) * 100, 2) if total_interviews else 0
+    total_interviews = completed_count
+    pending_count = 0
+    completion_rate = 100.0 if completed_count > 0 else 0
 
     score_values = [_extract_total_score(item) for item in completed_interviews]
     average_score = round(sum(score_values) / len(score_values), 2) if score_values else 0
@@ -103,6 +103,7 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
         )
 
     role_stats = {}
+    domain_stats = {}
     for interview in completed_interviews:
         role = interview.get("role") or interview.get("job_role") or "Unknown"
         score = _extract_total_score(interview)
@@ -110,6 +111,12 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
             role_stats[role] = {"count": 0, "total": 0}
         role_stats[role]["count"] += 1
         role_stats[role]["total"] += score
+
+        domain = interview.get("domain") or "Unknown"
+        if domain not in domain_stats:
+            domain_stats[domain] = {"count": 0, "total": 0}
+        domain_stats[domain]["count"] += 1
+        domain_stats[domain]["total"] += score
 
     role_breakdown = [
         {
@@ -120,6 +127,25 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
         for role, stats in role_stats.items()
     ]
     role_breakdown.sort(key=lambda item: item["role"])
+
+    domain_performance = {
+        domain: round(stats["total"] / stats["count"], 2)
+        for domain, stats in domain_stats.items()
+    }
+
+    recent_interviews = []
+    for interview in list(reversed(completed_interviews))[:5]:
+        created = interview.get("completed_at") or interview.get("created_at")
+        recent_interviews.append(
+            {
+                "interview_id": str(interview.get("_id")),
+                "role": interview.get("role") or interview.get("job_role") or "",
+                "domain": interview.get("domain") or "Unknown",
+                "score": _extract_total_score(interview),
+                "date": created.strftime("%Y-%m-%d") if created else "",
+                "status": "completed"
+            }
+        )
 
     recommendations = []
     if aggregated_skill_scores["System Design"] < 70:
@@ -143,6 +169,8 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
         "skill_scores": aggregated_skill_scores,
         "score_trend": trend,
         "role_breakdown": role_breakdown,
+        "domain_performance": domain_performance,
+        "recent_interviews": recent_interviews,
         "updated_at": datetime.utcnow(),
         "recommendations": recommendations,
     }
@@ -164,18 +192,36 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
         "skill_breakdown": aggregated_skill_scores,
         "trend": [{"attempt": item["attempt"], "score": item["score"], "date": item["date"]} for item in trend],
         "role_breakdown": role_breakdown,
+        "domain_performance": domain_performance,
+        "recent_interviews": recent_interviews,
         "recommendations": recommendations,
         "updated_at": payload["updated_at"].isoformat(),
     }
 
 
-def get_or_create_user_intelligence(user_id: str) -> Dict:
+def get_user_intelligence(user_id: str) -> Dict:
     intelligence_collection = get_collection("career_intelligence")
     user_object_id = _to_object_id(user_id)
 
     intelligence = intelligence_collection.find_one({"user_id": user_object_id})
     if not intelligence:
-        return rebuild_user_intelligence(user_id)
+        return {
+            "total_interviews": 0,
+            "completed_interviews": 0,
+            "pending_interviews": 0,
+            "completion_rate": 0,
+            "average_score": 0,
+            "role_readiness": 0,
+            "strongest_skill": "-",
+            "weakest_skill": "-",
+            "skill_breakdown": {skill: 0 for skill in REQUIRED_SKILLS},
+            "trend": [],
+            "role_breakdown": [],
+            "domain_performance": {},
+            "recent_interviews": [],
+            "recommendations": [],
+            "updated_at": None,
+        }
 
     skill_scores = intelligence.get("skill_scores") or {}
     trend = intelligence.get("score_trend") or []
@@ -199,6 +245,12 @@ def get_or_create_user_intelligence(user_id: str) -> Dict:
             for idx, item in enumerate(trend)
         ],
         "role_breakdown": intelligence.get("role_breakdown", []),
+        "domain_performance": intelligence.get("domain_performance", {}),
+        "recent_interviews": intelligence.get("recent_interviews", []),
         "recommendations": intelligence.get("recommendations", []),
         "updated_at": intelligence.get("updated_at").isoformat() if intelligence.get("updated_at") else None,
     }
+
+
+def get_or_create_user_intelligence(user_id: str) -> Dict:
+    return get_user_intelligence(user_id)

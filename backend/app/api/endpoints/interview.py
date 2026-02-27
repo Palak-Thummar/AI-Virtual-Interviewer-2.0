@@ -5,13 +5,12 @@ Create, manage, and complete interview sessions.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
-from typing import List
+from typing import List, Optional, Dict
 from bson import ObjectId
 from pydantic import BaseModel, Field
 from app.schemas.api import (
     InterviewSetup,
     InterviewCreateResponse,
-    AnswerSubmission,
     AnswerEvaluationResponse,
     InterviewResults,
     SkillMatch,
@@ -52,6 +51,16 @@ class CompanyInterviewGenerateResponse(BaseModel):
     company: str
     role: str
     questions: List[CompanyInterviewQuestion]
+
+
+class QuestionProgressSubmission(BaseModel):
+    question_id: int = Field(..., ge=0)
+    answer: Optional[str] = ""
+    skipped: bool = False
+
+
+class InterviewSubmitRequest(BaseModel):
+    answers: Optional[List[Dict]] = None
 
 
 @router.post("/create", response_model=InterviewCreateResponse)
@@ -100,22 +109,18 @@ async def create_interview(
     interview_doc = {
         "user_id": ObjectId(current_user_id),
         "role": setup.job_role,
-        "job_role": setup.job_role,
+        "type": "general",
         "domain": setup.domain,
         "job_description": setup.job_description,
         "resume_id": ObjectId(setup.resume_id),
         "questions": questions,
         "answers": [],
-        "total_score": 0.0,
-        "overall_score": 0.0,
-        "skill_scores": {
-            "DSA": 0,
-            "System Design": 0,
-            "Behavioral": 0,
-            "Communication": 0,
-        },
+        "current_question_index": 0,
+        "total_score": None,
+        "skill_scores": {},
         "status": "pending",
         "created_at": datetime.utcnow(),
+        "completed_at": None,
         "updated_at": datetime.utcnow()
     }
     
@@ -186,23 +191,19 @@ async def generate_company_interview(
     interview_doc = {
         "user_id": ObjectId(current_user_id),
         "role": normalized_role,
-        "job_role": normalized_role,
+        "type": "company",
         "domain": inferred_domain,
         "company": normalized_company,
         "difficulty": normalized_difficulty,
         "questions": [q["question"] for q in question_objects],
         "questions_structured": question_objects,
         "answers": [],
-        "total_score": 0.0,
-        "overall_score": 0.0,
-        "skill_scores": {
-            "DSA": 0,
-            "System Design": 0,
-            "Behavioral": 0,
-            "Communication": 0,
-        },
+        "current_question_index": 0,
+        "total_score": None,
+        "skill_scores": {},
         "status": "pending",
         "created_at": datetime.utcnow(),
+        "completed_at": None,
         "updated_at": datetime.utcnow()
     }
 
@@ -219,7 +220,7 @@ async def generate_company_interview(
 @router.post("/{interview_id}/submit-answer", response_model=AnswerEvaluationResponse)
 async def submit_answer(
     interview_id: str,
-    answer_data: AnswerSubmission,
+    answer_data: QuestionProgressSubmission,
     current_user_id: str = Depends(get_current_user)
 ):
     """
@@ -239,7 +240,8 @@ async def submit_answer(
     # Get interview
     interview = interviews_collection.find_one({
         "_id": ObjectId(interview_id),
-        "user_id": ObjectId(current_user_id)
+        "user_id": ObjectId(current_user_id),
+        "status": "pending"
     })
     
     if not interview:
@@ -258,12 +260,46 @@ async def submit_answer(
     
     question = questions[answer_data.question_id]
     
+    current_question_index = int(interview.get("current_question_index", 0) or 0)
+    if answer_data.question_id != current_question_index:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Question order mismatch"
+        )
+
+    if answer_data.skipped:
+        next_index = min(current_question_index + 1, len(questions))
+        interviews_collection.update_one(
+            {"_id": ObjectId(interview_id)},
+            {
+                "$set": {
+                    "current_question_index": next_index,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return AnswerEvaluationResponse(
+            question_id=answer_data.question_id,
+            score=0,
+            feedback="Question skipped",
+            strengths=[],
+            improvements=[]
+        )
+
+    answer_text = (answer_data.answer or "").strip()
+    if not answer_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Answer cannot be empty unless skipped"
+        )
+
     # Evaluate answer
     try:
         evaluation = await evaluate_answer(
             question=question,
-            answer=answer_data.answer,
-            job_context=interview.get("job_role", "")
+            answer=answer_text,
+            job_context=interview.get("role", "")
         )
     except Exception as e:
         evaluation = {
@@ -280,20 +316,25 @@ async def submit_answer(
     answer_record = {
         "question_id": answer_data.question_id,
         "question": question,
-        "answer": answer_data.answer,
+        "answer": answer_text,
         "score": evaluation.get("score", 0),
         "feedback": evaluation.get("feedback", ""),
         "strengths": evaluation.get("strengths", []),
         "improvements": evaluation.get("improvements", [])
     }
+
+    next_index = min(current_question_index + 1, len(questions))
     
     interviews_collection.update_one(
         {"_id": ObjectId(interview_id)},
-        {"$push": {"answers": answer_record}}
+        {
+            "$push": {"answers": answer_record},
+            "$set": {
+                "current_question_index": next_index,
+                "updated_at": datetime.utcnow()
+            }
+        }
     )
-
-    if interview.get("status") == "completed":
-        rebuild_user_intelligence(current_user_id)
     
     return AnswerEvaluationResponse(
         question_id=answer_data.question_id,
@@ -304,88 +345,112 @@ async def submit_answer(
     )
 
 
-@router.post("/{interview_id}/complete", response_model=InterviewResults)
-async def complete_interview(
-    interview_id: str,
-    current_user_id: str = Depends(get_current_user)
-):
-    """
-    Complete interview and generate results.
-    
-    Args:
-        interview_id: Interview ID
-        current_user_id: Current user ID from token
-        
-    Returns:
-        Interview results
-    """
-    
+async def _submit_and_complete_interview(interview_id: str, current_user_id: str, payload: InterviewSubmitRequest) -> InterviewResults:
     interviews_collection = get_collection("interviews")
     resumes_collection = get_collection("resumes")
-    
-    # Get interview
+
     interview = interviews_collection.find_one({
         "_id": ObjectId(interview_id),
         "user_id": ObjectId(current_user_id)
     })
-    
+
     if not interview:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Interview not found"
         )
-    
-    # Get resume for JD analysis
-    resume = resumes_collection.find_one(
-        {"_id": interview.get("resume_id")}
-    )
-    
+
+    if interview.get("status") == "completed":
+        answers = interview.get("answers", [])
+        question_scores = [
+            AnswerEvaluationResponse(
+                question_id=a.get("question_id", 0),
+                score=a.get("score", 0),
+                feedback=a.get("feedback", ""),
+                strengths=a.get("strengths", []),
+                improvements=a.get("improvements", [])
+            )
+            for a in answers
+        ]
+        return InterviewResults(
+            interview_id=interview_id,
+            overall_score=float(interview.get("total_score") or 0),
+            domain=interview.get("domain", ""),
+            job_role=interview.get("role", ""),
+            question_scores=question_scores,
+            skill_match=SkillMatch(
+                matched_skills=[],
+                missing_skills=[],
+                ats_score=0,
+                keyword_gaps=[],
+                experience_gap=""
+            ),
+            resume_suggestions=ResumeSuggestion(
+                improvement_suggestions=[],
+                ats_optimization_tips=[]
+            ),
+            completed_at=interview.get("completed_at") or interview.get("updated_at") or datetime.utcnow()
+        )
+
+    if payload.answers is not None:
+        interviews_collection.update_one(
+            {"_id": ObjectId(interview_id)},
+            {
+                "$set": {
+                    "answers": payload.answers,
+                    "current_question_index": len(interview.get("questions", [])),
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        interview = interviews_collection.find_one({"_id": ObjectId(interview_id)})
+
+    resume = None
+    resume_id = interview.get("resume_id")
+    if resume_id:
+        resume = resumes_collection.find_one({"_id": resume_id})
+
     resume_text = resume.get("parsed_text", "") if resume else ""
     jd_text = interview.get("job_description", "")
-    
-    print(f"[Interview Complete] Resume text length: {len(resume_text) if resume_text else 0}")
-    print(f"[Interview Complete] JD text length: {len(jd_text) if jd_text else 0}")
-    
-    # Analyze resume vs JD
+
     try:
-        print(f"[Interview Complete] Starting JD analysis...")
-        jd_analysis = await analyze_resume_against_jd(resume_text, jd_text)
-        print(f"[Interview Complete] JD analysis complete. ATS Score: {jd_analysis.get('ats_score', 0)}")
+        jd_analysis = await analyze_resume_against_jd(resume_text, jd_text) if jd_text else {
+            "ats_score": 0,
+            "matched_skills": [],
+            "missing_skills": [],
+            "keyword_gaps": [],
+            "experience_gap": "",
+            "improvement_suggestions": [],
+            "ats_optimization_tips": []
+        }
     except Exception as e:
-        print(f"[Interview Complete] ERROR in analyze_resume_against_jd: {str(e)}")
         jd_analysis = {
             "ats_score": 0,
             "matched_skills": [],
             "missing_skills": [],
             "keyword_gaps": [],
             "experience_gap": f"Analysis error: {str(e)}",
-            "improvement_suggestions": []
+            "improvement_suggestions": [],
+            "ats_optimization_tips": []
         }
-    
-    # Evaluate entire interview
-    answers = interview.get("answers", [])
-    
-    session_eval = {
-        "technical_proficiency": 0,
-        "communication_score": 0
-    }
 
+    answers = interview.get("answers", [])
+    session_eval = {"communication_score": 0}
     if answers:
         try:
             session_eval = await evaluate_interview_session(
                 questions=interview.get("questions", []),
                 answers=answers,
                 domain=interview.get("domain", ""),
-                job_role=interview.get("job_role", "")
+                job_role=interview.get("role", "")
             )
-            overall_score = session_eval.get("overall_score", 0)
-        except Exception as e:
-            # Fallback: calculate average score from answers
-            answer_scores = [a.get("score", 0) for a in answers]
+            overall_score = float(session_eval.get("overall_score", 0) or 0)
+        except Exception:
+            answer_scores = [float(a.get("score", 0) or 0) for a in answers]
             overall_score = sum(answer_scores) / len(answer_scores) if answer_scores else 0
     else:
         overall_score = 0
-    
+
     behavioral_scores = []
     for answer in answers:
         question_text = str(answer.get("question", "") or "").lower()
@@ -405,26 +470,23 @@ async def complete_interview(
         "Communication": communication_score,
     }
 
-    # Update interview status immediately with final computed fields
     completed_at = datetime.utcnow()
     interviews_collection.update_one(
-        {"_id": ObjectId(interview_id)},
+        {"_id": ObjectId(interview_id), "status": "pending"},
         {
             "$set": {
                 "status": "completed",
                 "total_score": round(float(overall_score or 0), 2),
-                "overall_score": round(float(overall_score or 0), 2),
                 "skill_scores": skill_breakdown,
-                "skill_breakdown": skill_breakdown,
+                "current_question_index": len(interview.get("questions", [])),
                 "completed_at": completed_at,
                 "updated_at": completed_at
             }
         }
     )
 
-    rebuild_user_intelligence(current_user_id)
-    
-    # Format results
+    intelligence = rebuild_user_intelligence(current_user_id)
+
     question_scores = [
         AnswerEvaluationResponse(
             question_id=a.get("question_id", 0),
@@ -435,7 +497,7 @@ async def complete_interview(
         )
         for a in answers
     ]
-    
+
     skill_match = SkillMatch(
         matched_skills=jd_analysis.get("matched_skills", []),
         missing_skills=jd_analysis.get("missing_skills", []),
@@ -443,24 +505,40 @@ async def complete_interview(
         keyword_gaps=jd_analysis.get("keyword_gaps", []),
         experience_gap=jd_analysis.get("experience_gap", "")
     )
-    
-    print(f"[Interview Complete] SkillMatch ATS Score: {skill_match.ats_score}")
-    
+
     resume_suggestions = ResumeSuggestion(
         improvement_suggestions=jd_analysis.get("improvement_suggestions", []),
         ats_optimization_tips=jd_analysis.get("ats_optimization_tips", [])
     )
-    
+
     return InterviewResults(
         interview_id=interview_id,
-        overall_score=overall_score,
+        overall_score=round(float(overall_score or 0), 2),
         domain=interview.get("domain", ""),
-        job_role=interview.get("job_role", ""),
+        job_role=interview.get("role", ""),
         question_scores=question_scores,
         skill_match=skill_match,
         resume_suggestions=resume_suggestions,
-        completed_at=completed_at
+        completed_at=completed_at,
+        intelligence=intelligence
     )
+
+
+@router.post("/{interview_id}/submit", response_model=InterviewResults)
+async def submit_interview(
+    interview_id: str,
+    payload: InterviewSubmitRequest,
+    current_user_id: str = Depends(get_current_user)
+):
+    return await _submit_and_complete_interview(interview_id, current_user_id, payload)
+
+
+@router.post("/{interview_id}/complete", response_model=InterviewResults)
+async def complete_interview(
+    interview_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
+    return await _submit_and_complete_interview(interview_id, current_user_id, InterviewSubmitRequest())
 
 
 @router.get("/{interview_id}")
@@ -494,13 +572,17 @@ async def get_interview(
     
     return {
         "id": str(interview["_id"]),
-        "job_role": interview.get("job_role", ""),
+        "role": interview.get("role", ""),
+        "type": interview.get("type", "general"),
         "domain": interview.get("domain", ""),
         "status": interview.get("status", ""),
-        "overall_score": interview.get("overall_score", 0),
+        "total_score": interview.get("total_score"),
+        "skill_scores": interview.get("skill_scores", {}),
         "questions": interview.get("questions", []),
         "answers": interview.get("answers", []),
+        "current_question_index": int(interview.get("current_question_index", 0) or 0),
         "created_at": interview.get("created_at"),
+        "completed_at": interview.get("completed_at"),
         "updated_at": interview.get("updated_at")
     }
 
@@ -554,7 +636,7 @@ async def resume_interview(
     interview = interviews_collection.find_one({
         "_id": ObjectId(interview_id),
         "user_id": ObjectId(current_user_id),
-        "status": {"$in": ["pending", "in_progress"]}
+        "status": "pending"
     })
     
     if not interview:
@@ -563,15 +645,16 @@ async def resume_interview(
             detail="In-progress interview not found"
         )
     
-    # Calculate current question index based on answers received
     answers = interview.get("answers", [])
-    current_question_index = len(answers)
+    current_question_index = int(interview.get("current_question_index", 0) or 0)
     
     return {
         "id": str(interview["_id"]),
         "job_role": interview.get("job_role", ""),
         "domain": interview.get("domain", ""),
-        "status": interview.get("status", ""),
+        "status": interview.get("status", "pending"),
+        "type": interview.get("type", "general"),
+        "role": interview.get("role", ""),
         "questions": interview.get("questions", []),
         "answers": answers,
         "current_question_index": current_question_index,

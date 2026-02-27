@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer,
   LineChart,
@@ -20,6 +21,7 @@ const defaultSkillBreakdown = {
 };
 
 export const InterviewHistoryPage = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [interviews, setInterviews] = useState([]);
@@ -168,12 +170,30 @@ export const InterviewHistoryPage = () => {
                           <span className={`${styles.statusBadge} ${statusClass}`}>{status || 'pending'}</span>
                         </td>
                         <td>
+                          {status === 'pending' ? (
+                            <button
+                              type="button"
+                              className={styles.secondaryButton}
+                              onClick={() => navigate(`/interview/${item?.id}?resume=true`)}
+                            >
+                              Resume
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.secondaryButton}
+                              onClick={() => navigate(`/results/${item?.id}`)}
+                            >
+                              View Report
+                            </button>
+                          )}
                           <button
                             type="button"
                             className={styles.secondaryButton}
                             onClick={() => setSelectedInterview(item)}
+                            style={{ marginLeft: 8 }}
                           >
-                            View Details
+                            Details
                           </button>
                         </td>
                       </tr>

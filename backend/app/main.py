@@ -38,6 +38,8 @@ async def startup_event():
     print(f"   - App: {settings.APP_NAME}")
     print(f"   - Version: {settings.APP_VERSION}")
     print(f"   - Debug: {settings.DEBUG}")
+    print(f"   - CORS Origins: {settings.get_cors_origins()}")
+    print(f"   - CORS Regex: {settings.get_cors_origin_regex()}")
     
     # Check OpenRouter
     if settings.OPENROUTER_API_KEY:

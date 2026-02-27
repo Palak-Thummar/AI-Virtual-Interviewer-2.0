@@ -4,7 +4,7 @@ Career intelligence API endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from app.api.dependencies import get_current_user
-from app.services.career_intelligence import get_or_create_user_intelligence, rebuild_user_intelligence
+from app.services.career_intelligence import get_user_intelligence, rebuild_user_intelligence
 
 router = APIRouter(prefix="/api/career-intelligence", tags=["career-intelligence"])
 
@@ -15,7 +15,7 @@ async def get_career_intelligence(response: Response, current_user_id: str = Dep
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
-        return get_or_create_user_intelligence(current_user_id)
+        return get_user_intelligence(current_user_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

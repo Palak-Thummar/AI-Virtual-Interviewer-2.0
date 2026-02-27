@@ -112,6 +112,9 @@ export const interviewAPI = {
   
   submitAnswer: (interviewId, answerData) =>
     api.post(`/interview/${interviewId}/submit-answer`, answerData),
+
+  submit: (interviewId, payload = {}) =>
+    api.post(`/interview/${interviewId}/submit`, payload),
   
   complete: (interviewId) =>
     api.post(`/interview/${interviewId}/complete`)

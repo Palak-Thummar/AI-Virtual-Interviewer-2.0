@@ -5,12 +5,8 @@ Dashboard data, performance metrics, and insights.
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from app.schemas.api import AnalyticsData
-from app.services.analytics import (
-    get_user_analytics,
-    get_domain_performance,
-    get_improvement_suggestions,
-)
-from app.services.career_intelligence import get_or_create_user_intelligence
+from app.services.analytics import get_domain_performance, get_improvement_suggestions
+from app.services.career_intelligence import get_user_intelligence
 from app.api.dependencies import get_current_user
 from bson import ObjectId
 
@@ -30,15 +26,18 @@ async def get_dashboard(current_user_id: str = Depends(get_current_user)):
     """
     
     try:
-        analytics = await get_user_analytics(current_user_id)
+        analytics = get_user_intelligence(current_user_id)
         
         return AnalyticsData(
             average_score=analytics.get("average_score", 0),
-            best_score=analytics.get("best_score", 0),
-            interview_count=analytics.get("interview_count", 0),
+            best_score=max([
+                float(item.get("score", 0) or 0)
+                for item in analytics.get("trend", [])
+            ] or [0]),
+            interview_count=analytics.get("completed_interviews", 0),
             domain_performance=analytics.get("domain_performance", {}),
             recent_interviews=analytics.get("recent_interviews", []),
-            improvement_trend=analytics.get("improvement_trend", [])
+            improvement_trend=analytics.get("trend", [])
         )
     except Exception as e:
         raise HTTPException(
@@ -305,7 +304,7 @@ async def get_summary(response: Response, current_user_id: str = Depends(get_cur
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
-        return get_or_create_user_intelligence(current_user_id)
+        return get_user_intelligence(current_user_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

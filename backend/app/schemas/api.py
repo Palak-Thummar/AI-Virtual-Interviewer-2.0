@@ -125,6 +125,7 @@ class InterviewResults(BaseModel):
     skill_match: SkillMatch
     resume_suggestions: ResumeSuggestion
     completed_at: datetime
+    intelligence: Optional[dict] = None
 
 
 class AnalyticsData(BaseModel):

@@ -1,308 +1,215 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { create } from 'zustand';
-import { analyticsAPI, interviewAPI } from '../services/api';
+import { Clock3, Loader2, Target, Trophy } from 'lucide-react';
+import { interviewAPI } from '../services/api';
 import { useIntelligenceStore } from '../context/IntelligenceStore';
-import {
-  Clock3,
-  Loader2,
-  Sparkles,
-  Target,
-  Trophy
-} from 'lucide-react';
 import styles from './InterviewSession.module.css';
 
 const QUESTION_TIME_SECONDS = 60;
-
-const generateQuestionByIndex = (index, role) => {
-  const questionNumber = index + 1;
-  const isBehavioral = questionNumber % 3 === 0;
-  const type = isBehavioral ? 'Behavioral' : 'Technical';
-
-  if (isBehavioral) {
-    return {
-      id: questionNumber,
-      type,
-      question: `For a ${role} role, describe a challenging collaboration scenario you handled and what outcome you achieved.`
-    };
-  }
-
-  if (questionNumber % 2 === 0) {
-    return {
-      id: questionNumber,
-      type,
-      question: `As a ${role}, how would you debug and resolve a production issue while minimizing user impact?`
-    };
-  }
-
-  return {
-    id: questionNumber,
-    type,
-    question: `For a ${role} position, explain your approach to designing a scalable, maintainable solution for a core feature.`
-  };
-};
-
-const generateQuestions = (role, questionCount) =>
-  Array.from({ length: questionCount }, (_, index) => generateQuestionByIndex(index, role));
-
-const buildMockFeedback = (question, answer) => {
-  const answerLength = answer.trim().length;
-  const baseline = answerLength > 260 ? 8 : answerLength > 160 ? 7 : answerLength > 70 ? 6 : 5;
-  const score = Math.min(10, Math.max(4, baseline + (question.type === 'Technical' ? 1 : 0)));
-
-  return {
-    score,
-    strengths: 'Clear structure, relevant context, and confident communication in your explanation.',
-    improvements: 'Add one concrete real-world example and quantify impact to strengthen credibility.',
-    idealAnswer:
-      question.type === 'Technical'
-        ? 'Start with concise definitions, compare trade-offs, and end with when to choose each approach in production.'
-        : 'Use the STAR method with measurable outcomes, collaboration details, and your learning takeaway.'
-  };
-};
-
-const useInterviewSessionStore = create((set, get) => ({
-  questions: [],
-  role: '',
-  questionCount: 0,
-  currentQuestionIndex: 0,
-  currentAnswer: '',
-  timer: QUESTION_TIME_SECONDS,
-  interviewStatus: 'idle',
-  feedbackResults: [],
-  finalScore: 0,
-  isFeedbackVisible: false,
-  initializeSession: ({ role, questionCount, questions }) =>
-    set({
-      role,
-      questionCount,
-      questions,
-      currentQuestionIndex: 0,
-      currentAnswer: '',
-      timer: QUESTION_TIME_SECONDS,
-      interviewStatus: 'idle',
-      feedbackResults: [],
-      finalScore: 0,
-      isFeedbackVisible: false
-    }),
-  startInterview: () =>
-    set({
-      currentQuestionIndex: 0,
-      currentAnswer: '',
-      timer: QUESTION_TIME_SECONDS,
-      interviewStatus: 'in-progress',
-      feedbackResults: [],
-      finalScore: 0,
-      isFeedbackVisible: false
-    }),
-  setCurrentAnswer: (value) => set({ currentAnswer: value }),
-  tickTimer: () => set((state) => ({ timer: Math.max(0, state.timer - 1) })),
-  resetTimer: () => set({ timer: QUESTION_TIME_SECONDS }),
-  beginEvaluation: () => set({ interviewStatus: 'evaluating' }),
-  storeFeedback: (feedback) =>
-    set((state) => ({
-      feedbackResults: [...state.feedbackResults, feedback],
-      interviewStatus: 'in-progress',
-      isFeedbackVisible: true
-    })),
-  nextQuestion: () =>
-    set((state) => ({
-      currentQuestionIndex: state.currentQuestionIndex + 1,
-      currentAnswer: '',
-      timer: QUESTION_TIME_SECONDS,
-      isFeedbackVisible: false,
-      interviewStatus: 'in-progress'
-    })),
-  completeInterview: (scoreOverride) => {
-    const { feedbackResults } = get();
-    const total = feedbackResults.reduce((sum, item) => sum + item.score, 0);
-    const computedScore = feedbackResults.length ? Math.round(total / feedbackResults.length) : 0;
-    const finalScore =
-      typeof scoreOverride === 'number' && !Number.isNaN(scoreOverride)
-        ? Math.round(scoreOverride)
-        : computedScore;
-
-    set({
-      interviewStatus: 'completed',
-      finalScore,
-      isFeedbackVisible: false
-    });
-  },
-  endInterviewNow: () => {
-    const { feedbackResults } = get();
-    const total = feedbackResults.reduce((sum, item) => sum + item.score, 0);
-    const finalScore = feedbackResults.length ? Math.round((total / (feedbackResults.length * 10)) * 100) : 0;
-    set({ interviewStatus: 'completed', finalScore, isFeedbackVisible: false });
-  }
-}));
 
 export const InterviewSessionPage = () => {
   const navigate = useNavigate();
   const { interviewId } = useParams();
   const location = useLocation();
-  const isRealInterview = Boolean(interviewId && interviewId !== 'mock-session');
+  const isResuming = new URLSearchParams(location.search).get('resume') === 'true';
   const setIntelligence = useIntelligenceStore((state) => state.setIntelligence);
-  const selectedRole = location.state?.role;
-  const selectedQuestionCount = Number(location.state?.questionCount);
 
-  const {
-    questions,
-    role,
-    questionCount,
-    currentQuestionIndex,
-    currentAnswer,
-    timer,
-    interviewStatus,
-    feedbackResults,
-    finalScore,
-    isFeedbackVisible,
-    initializeSession,
-    startInterview,
-    setCurrentAnswer,
-    tickTimer,
-    beginEvaluation,
-    storeFeedback,
-    nextQuestion,
-    completeInterview,
-    endInterviewNow
-  } = useInterviewSessionStore();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [interview, setInterview] = useState(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentAnswer, setCurrentAnswer] = useState('');
+  const [timer, setTimer] = useState(QUESTION_TIME_SECONDS);
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [completed, setCompleted] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
 
   useEffect(() => {
-    if (!selectedRole || !Number.isInteger(selectedQuestionCount) || selectedQuestionCount <= 0) {
-      navigate('/dashboard', { replace: true });
-      return;
-    }
+    const loadInterview = async () => {
+      try {
+        setLoading(true);
+        setError('');
 
-    const generatedQuestions = generateQuestions(selectedRole, selectedQuestionCount);
+        const response = isResuming
+          ? await interviewAPI.resume(interviewId)
+          : await interviewAPI.get(interviewId);
 
-    console.log('Selected role:', selectedRole);
-    console.log('Selected questionCount:', selectedQuestionCount);
-    console.log('Generated questions length:', generatedQuestions.length);
+        const data = response?.data || {};
 
-    initializeSession({
-      role: selectedRole,
-      questionCount: selectedQuestionCount,
-      questions: generatedQuestions
-    });
-  }, [selectedRole, selectedQuestionCount, initializeSession, navigate, interviewId]);
+        if (data?.status === 'completed') {
+          navigate(`/results/${interviewId}`, { replace: true });
+          return;
+        }
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const latestFeedback = feedbackResults[feedbackResults.length - 1];
-  const progressPercent = questions.length
-    ? ((currentQuestionIndex + (isFeedbackVisible ? 1 : 0)) / questions.length) * 100
-    : 0;
-  const averageScore = feedbackResults.length
-    ? (feedbackResults.reduce((sum, item) => sum + item.score, 0) / feedbackResults.length).toFixed(1)
-    : '0.0';
+        setInterview({
+          id: data.id,
+          role: data.role || data.job_role || '',
+          type: data.type || 'general',
+          questions: Array.isArray(data.questions) ? data.questions : [],
+          answers: Array.isArray(data.answers) ? data.answers : []
+        });
+
+        setCurrentQuestionIndex(Number(data.current_question_index || 0));
+        setTimer(QUESTION_TIME_SECONDS);
+      } catch (err) {
+        setError(err?.response?.data?.detail || 'Failed to load interview session.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInterview();
+  }, [interviewId, isResuming, navigate]);
 
   useEffect(() => {
-    if (interviewStatus !== 'in-progress' || isFeedbackVisible) return undefined;
+    if (loading || completed || feedback || !interview?.questions?.length) return;
 
     const interval = setInterval(() => {
-      const { timer: currentTimer } = useInterviewSessionStore.getState();
-      if (currentTimer <= 1) {
-        clearInterval(interval);
-        handleSubmit(true);
-      } else {
-        tickTimer();
-      }
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleSkipQuestion();
+          return QUESTION_TIME_SECONDS;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [interviewStatus, isFeedbackVisible]);
+  }, [loading, completed, feedback, interview?.questions?.length, currentQuestionIndex]);
 
-  const handleSubmit = async (autoSubmit = false) => {
-    const answerToEvaluate = autoSubmit
-      ? currentAnswer.trim() || 'No answer provided. Candidate timed out.'
-      : currentAnswer.trim();
+  const currentQuestion = interview?.questions?.[currentQuestionIndex] || '';
+  const hasMultipleQuestions = (interview?.questions?.length || 0) > 1;
 
-    if (!answerToEvaluate || interviewStatus !== 'in-progress') return;
+  const completedAnswers = useMemo(() => {
+    return Array.isArray(interview?.answers) ? interview.answers.length : 0;
+  }, [interview?.answers]);
 
-    beginEvaluation();
+  const progressPercent = useMemo(() => {
+    const total = interview?.questions?.length || 0;
+    if (!total) return 0;
+    return ((currentQuestionIndex + (feedback ? 1 : 0)) / total) * 100;
+  }, [interview?.questions?.length, currentQuestionIndex, feedback]);
+
+  const averageScore = useMemo(() => {
+    if (!Array.isArray(interview?.answers) || interview.answers.length === 0) return '0.0';
+    const total = interview.answers.reduce((sum, item) => sum + Number(item?.score || 0), 0);
+    return (total / interview.answers.length).toFixed(1);
+  }, [interview?.answers]);
+
+  const appendAnswerLocally = (entry) => {
+    setInterview((prev) => ({
+      ...prev,
+      answers: [...(prev?.answers || []), entry]
+    }));
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!currentAnswer.trim() || submitting) return;
+
+    setSubmitting(true);
+    setError('');
 
     try {
-      if (isRealInterview) {
-        const response = await interviewAPI.submitAnswer(interviewId, {
-          question_id: currentQuestionIndex,
-          answer: answerToEvaluate
-        });
-        const data = response?.data || {};
-
-        storeFeedback({
-          questionId: currentQuestion.id,
-          question: currentQuestion.question,
-          type: currentQuestion.type,
-          answer: answerToEvaluate,
-          score: Number(data?.score || 0),
-          feedback: data?.feedback || '',
-          strengths: Array.isArray(data?.strengths) ? data.strengths.join(' ') : '',
-          improvements: Array.isArray(data?.improvements) ? data.improvements.join(' ') : '',
-          idealAnswer: 'Focus on concise structure, relevant details, and measurable impact.'
-        });
-        return;
-      }
-
-      window.setTimeout(() => {
-        const feedback = buildMockFeedback(currentQuestion, answerToEvaluate);
-        storeFeedback({
-          questionId: currentQuestion.id,
-          question: currentQuestion.question,
-          type: currentQuestion.type,
-          answer: answerToEvaluate,
-          ...feedback
-        });
-      }, 1300);
-    } catch {
-      const fallback = buildMockFeedback(currentQuestion, answerToEvaluate);
-      storeFeedback({
-        questionId: currentQuestion.id,
-        question: currentQuestion.question,
-        type: currentQuestion.type,
-        answer: answerToEvaluate,
-        ...fallback
+      const response = await interviewAPI.submitAnswer(interviewId, {
+        question_id: currentQuestionIndex,
+        answer: currentAnswer.trim(),
+        skipped: false
       });
+      const data = response?.data || {};
+
+      const answerRecord = {
+        question_id: currentQuestionIndex,
+        question: currentQuestion,
+        answer: currentAnswer.trim(),
+        score: Number(data?.score || 0),
+        feedback: data?.feedback || '',
+        strengths: Array.isArray(data?.strengths) ? data.strengths : [],
+        improvements: Array.isArray(data?.improvements) ? data.improvements : []
+      };
+
+      appendAnswerLocally(answerRecord);
+      setFeedback(answerRecord);
+      setCurrentAnswer('');
+      setTimer(QUESTION_TIME_SECONDS);
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to submit answer.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const finalizeInterview = async () => {
-    if (isRealInterview) {
-      try {
-        const completeResponse = await interviewAPI.complete(interviewId);
-        const backendScore = Number(completeResponse?.data?.overall_score ?? 0);
-        const intelligenceResponse = await analyticsAPI.getCareerIntelligence();
-        setIntelligence(intelligenceResponse?.data || null);
-        completeInterview(backendScore);
-        return;
-      } catch {
-        completeInterview();
-        return;
+  const handleSkipQuestion = async () => {
+    if (submitting || !hasMultipleQuestions) return;
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await interviewAPI.submitAnswer(interviewId, {
+        question_id: currentQuestionIndex,
+        answer: '',
+        skipped: true
+      });
+
+      if (currentQuestionIndex < (interview?.questions?.length || 0) - 1) {
+        setCurrentQuestionIndex((prev) => prev + 1);
+        setCurrentAnswer('');
+        setFeedback(null);
+        setTimer(QUESTION_TIME_SECONDS);
+      } else {
+        await handleSubmitInterview();
       }
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to skip question.');
+    } finally {
+      setSubmitting(false);
     }
-
-    completeInterview();
-  };
-
-  const handleEndInterviewNow = async () => {
-    if (isRealInterview) {
-      await finalizeInterview();
-      return;
-    }
-    endInterviewNow();
   };
 
   const handleNext = async () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      nextQuestion();
+    if (currentQuestionIndex < (interview?.questions?.length || 0) - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      setCurrentAnswer('');
+      setFeedback(null);
+      setTimer(QUESTION_TIME_SECONDS);
       return;
     }
-    await finalizeInterview();
+
+    await handleSubmitInterview();
+  };
+
+  const handleSubmitInterview = async () => {
+    if (submitting) return;
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const response = await interviewAPI.submit(interviewId, {});
+      const data = response?.data || {};
+      const score = Number(data?.overall_score || 0);
+
+      if (data?.intelligence) {
+        setIntelligence(data.intelligence);
+      }
+
+      setFinalScore(score);
+      setCompleted(true);
+      setFeedback(null);
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to submit interview.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const timerClassName = `${styles.timer} ${timer < 10 ? styles.timerDanger : ''}`;
   const scoreClassName =
-    latestFeedback?.score >= 80
+    Number(feedback?.score || 0) >= 80
       ? styles.scoreGood
-      : latestFeedback?.score >= 60
+      : Number(feedback?.score || 0) >= 60
       ? styles.scoreAverage
       : styles.scoreLow;
 
@@ -313,30 +220,88 @@ export const InterviewSessionPage = () => {
     return 'Early stage progress. Practice consistently to improve confidence and quality.';
   }, [finalScore]);
 
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <section className={styles.evaluatingCard}>
+          <Loader2 className={styles.spinIcon} size={24} />
+          <h2>Loading interview...</h2>
+        </section>
+      </div>
+    );
+  }
+
+  if (error && !interview) {
+    return (
+      <div className={styles.page}>
+        <section className={styles.evaluatingCard}>
+          <h2>{error}</h2>
+          <button type="button" className={styles.primaryButton} onClick={() => navigate('/interviews')}>
+            Back to Interviews
+          </button>
+        </section>
+      </div>
+    );
+  }
+
+  if (completed) {
+    return (
+      <div className={styles.page}>
+        <section className={styles.completedCard}>
+          <div className={styles.completedIconWrap}>
+            <Trophy size={24} />
+          </div>
+          <h2 className={styles.completedTitle}>Interview Completed</h2>
+          <p className={styles.completedSubtitle}>Session ID: {interviewId}</p>
+
+          <div className={styles.scoreGrid}>
+            <div className={styles.scoreItem}>
+              <span>Final Score</span>
+              <strong>{Math.round(finalScore)}%</strong>
+            </div>
+            <div className={styles.scoreItem}>
+              <span>Average Score</span>
+              <strong>{averageScore}%</strong>
+            </div>
+            <div className={styles.scoreItem}>
+              <span>Answered</span>
+              <strong>{completedAnswers}</strong>
+            </div>
+          </div>
+
+          <div className={styles.summaryBox}>
+            <Target size={16} />
+            <p>{summaryText}</p>
+          </div>
+
+          <div className={styles.completedActions}>
+            <button type="button" className={styles.secondaryButton} onClick={() => navigate(`/results/${interviewId}`)}>
+              View Report
+            </button>
+            <button type="button" className={styles.primaryButton} onClick={() => navigate('/career-intelligence')}>
+              View Career Intelligence
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
-      {interviewStatus !== 'idle' && interviewStatus !== 'completed' ? (
-        <div className={styles.topProgressWrap}>
-          <div className={styles.progressTrack}>
-            <div className={styles.progressValue} style={{ width: `${Math.min(100, progressPercent)}%` }} />
-          </div>
+      <div className={styles.topProgressWrap}>
+        <div className={styles.progressTrack}>
+          <div className={styles.progressValue} style={{ width: `${Math.min(100, progressPercent)}%` }} />
         </div>
-      ) : null}
+      </div>
 
-      {interviewStatus === 'idle' ? (
-        <section className={styles.centerCard}>
-          <span className={styles.badge}>AI Mock Session</span>
-          <h1 className={styles.title}>Real-time Interview Practice</h1>
-          <p className={styles.subtitle}>
-            Role: {role || selectedRole} · Difficulty: Intermediate · {questionCount || selectedQuestionCount} Questions · 60 sec/question
-          </p>
-          <button type="button" className={styles.primaryButton} onClick={startInterview}>
-            Start Interview
-          </button>
+      {error ? (
+        <section className={styles.evaluatingCard} style={{ marginBottom: 14 }}>
+          <h2>{error}</h2>
         </section>
       ) : null}
 
-      {interviewStatus === 'in-progress' && !isFeedbackVisible ? (
+      {!feedback ? (
         <section className={styles.sessionWrap}>
           <div className={styles.stickyTimerWrap}>
             <div className={timerClassName}>
@@ -347,13 +312,13 @@ export const InterviewSessionPage = () => {
 
           <header className={styles.sessionHeader}>
             <p className={styles.questionCount}>
-              Question {currentQuestionIndex + 1} / {questions.length}
+              Question {currentQuestionIndex + 1} / {interview?.questions?.length || 0}
             </p>
-            <span className={styles.categoryBadge}>{currentQuestion?.type}</span>
+            <span className={styles.categoryBadge}>{interview?.type === 'company' ? 'Company' : 'General'}</span>
           </header>
 
           <article className={styles.questionCard}>
-            <p className={styles.questionText}>{currentQuestion?.question}</p>
+            <p className={styles.questionText}>{currentQuestion}</p>
           </article>
 
           <article className={styles.answerCard}>
@@ -366,112 +331,64 @@ export const InterviewSessionPage = () => {
             />
             <div className={styles.answerMeta}>
               <span>{currentAnswer.length} characters</span>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={() => handleSubmit(false)}
-                disabled={!currentAnswer.trim()}
-              >
-                Submit Answer
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {hasMultipleQuestions ? (
+                  <button type="button" className={styles.secondaryButton} onClick={handleSkipQuestion} disabled={submitting}>
+                    Skip Question
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={handleSubmitAnswer}
+                  disabled={!currentAnswer.trim() || submitting}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Answer'}
+                </button>
+              </div>
             </div>
           </article>
         </section>
-      ) : null}
-
-      {interviewStatus === 'evaluating' ? (
-        <section className={styles.evaluatingCard}>
-          <Loader2 className={styles.spinIcon} size={24} />
-          <h2>Evaluating your answer...</h2>
-          <p>AI is generating structured feedback and ideal response guidance.</p>
-        </section>
-      ) : null}
-
-      {interviewStatus === 'in-progress' && isFeedbackVisible && latestFeedback ? (
+      ) : (
         <section className={styles.feedbackWrap}>
           <article className={styles.panel}>
             <h3 className={styles.panelTitle}>Your Answer</h3>
-            <p className={styles.panelText}>{latestFeedback.answer}</p>
+            <p className={styles.panelText}>{feedback.answer}</p>
           </article>
 
           <article className={styles.panel}>
             <h3 className={styles.panelTitle}>AI Feedback</h3>
-            <div className={`${styles.scoreBadge} ${scoreClassName}`}>
-              Score: {latestFeedback.score}/100
-            </div>
+            <div className={`${styles.scoreBadge} ${scoreClassName}`}>Score: {Number(feedback.score || 0)}/100</div>
 
-            {latestFeedback.feedback ? (
+            {feedback.feedback ? (
               <div className={styles.feedbackBlock}>
                 <h4>Overall Feedback</h4>
-                <p>{latestFeedback.feedback}</p>
+                <p>{feedback.feedback}</p>
               </div>
             ) : null}
 
-            <div className={styles.feedbackBlock}>
-              <h4>Strengths</h4>
-              <p>{latestFeedback.strengths}</p>
-            </div>
+            {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 ? (
+              <div className={styles.feedbackBlock}>
+                <h4>Strengths</h4>
+                <p>{feedback.strengths.join(', ')}</p>
+              </div>
+            ) : null}
 
-            <div className={styles.feedbackBlock}>
-              <h4>Improvements</h4>
-              <p>{latestFeedback.improvements}</p>
-            </div>
-
-            <div className={styles.idealAnswer}>
-              <h4>Ideal Answer</h4>
-              <p>{latestFeedback.idealAnswer}</p>
-            </div>
+            {Array.isArray(feedback.improvements) && feedback.improvements.length > 0 ? (
+              <div className={styles.feedbackBlock}>
+                <h4>Improvements</h4>
+                <p>{feedback.improvements.join(', ')}</p>
+              </div>
+            ) : null}
 
             <div className={styles.feedbackActions}>
-              <button type="button" className={styles.secondaryButton} onClick={handleEndInterviewNow}>
-                End Interview
-              </button>
-              <button type="button" className={styles.primaryButton} onClick={handleNext}>
-                {currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question'}
+              <button type="button" className={styles.primaryButton} onClick={handleNext} disabled={submitting}>
+                {currentQuestionIndex === (interview?.questions?.length || 1) - 1 ? 'Submit Interview' : 'Next Question'}
               </button>
             </div>
           </article>
         </section>
-      ) : null}
-
-      {interviewStatus === 'completed' ? (
-        <section className={styles.completedCard}>
-          <div className={styles.completedIconWrap}>
-            <Trophy size={24} />
-          </div>
-          <h2 className={styles.completedTitle}>Interview Completed</h2>
-          <p className={styles.completedSubtitle}>Session ID: {interviewId || 'mock-session'}</p>
-
-          <div className={styles.scoreGrid}>
-            <div className={styles.scoreItem}>
-              <span>Final Score</span>
-              <strong>{finalScore}%</strong>
-            </div>
-            <div className={styles.scoreItem}>
-              <span>Average Score</span>
-              <strong>{averageScore}%</strong>
-            </div>
-            <div className={styles.scoreItem}>
-              <span>Questions</span>
-              <strong>{feedbackResults.length}</strong>
-            </div>
-          </div>
-
-          <div className={styles.summaryBox}>
-            <Target size={16} />
-            <p>{summaryText}</p>
-          </div>
-
-          <div className={styles.completedActions}>
-            <button type="button" className={styles.secondaryButton} onClick={() => navigate('/analytics')}>
-              View Detailed Analytics
-            </button>
-            <button type="button" className={styles.primaryButton} onClick={startInterview}>
-              Retake Interview
-            </button>
-          </div>
-        </section>
-      ) : null}
+      )}
     </div>
   );
 };

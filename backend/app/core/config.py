@@ -4,6 +4,7 @@ Handles environment variables and app-wide constants.
 """
 
 import json
+import re
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 from typing import List, Optional
@@ -72,10 +73,17 @@ class Settings(BaseSettings):
         return normalized
 
     def get_cors_origin_regex(self) -> str:
-        configured = (self.CORS_ORIGIN_REGEX or "").strip()
+        configured = (self.CORS_ORIGIN_REGEX or "").strip().strip('"\'')
+        fallback = r"^https://.*\.vercel\.app$|^http://localhost(:\d+)?$|^http://127\.0\.0\.1(:\d+)?$"
+
         if configured:
-            return configured
-        return r"^https://.*\.vercel\.app$|^http://localhost(:\d+)?$|^http://127\.0\.0\.1(:\d+)?$"
+            try:
+                re.compile(configured)
+                return configured
+            except re.error:
+                pass
+
+        return fallback
 
 
 def get_available_models_formatted() -> str:

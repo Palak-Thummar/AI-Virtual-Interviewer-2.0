@@ -50,10 +50,11 @@ async def list_interviews(current_user_id: str = Depends(get_current_user)):
         response.append(
             {
                 "id": str(interview.get("_id")),
-                "role": interview.get("role") or interview.get("job_role", ""),
+                "role": interview.get("role", ""),
                 "company": interview.get("company", "-") or "-",
-                "score": round(float(interview.get("total_score", interview.get("overall_score", 0)) or 0), 2),
+                "score": round(float(interview.get("total_score", 0) or 0), 2),
                 "status": "completed" if interview.get("status") == "completed" else "pending",
+                "current_question_index": int(interview.get("current_question_index", 0) or 0),
                 "date": interview_date.strftime("%Y-%m-%d") if isinstance(interview_date, datetime) else "",
                 "skill_breakdown": skill_breakdown,
                 "strengths": unique_strengths,

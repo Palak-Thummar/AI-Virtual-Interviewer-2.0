@@ -31,6 +31,7 @@ export const DashboardPage = () => {
       try {
         setLoading(true);
         setError('');
+        await analyticsAPI.getCareerIntelligence();
         const response = await analyticsAPI.getSummary();
         setSummary(response?.data || null);
       } catch (err) {

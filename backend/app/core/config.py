@@ -46,44 +46,53 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = "https://ai-virtual-interviewer-2-0.vercel.app"
     CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\.vercel\.app"
+    DEV_CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     def get_cors_origins(self) -> List[str]:
         raw = (self.CORS_ORIGINS or "").strip()
-        if not raw:
-            return []
+        normalized = []
 
-        if raw.startswith("["):
+        if not raw:
+            normalized = []
+        elif raw.startswith("["):
             try:
                 parsed = json.loads(raw)
                 if isinstance(parsed, list):
-                    normalized = []
                     for item in parsed:
                         origin = str(item).strip().strip('"\'').rstrip('/')
                         if origin:
                             normalized.append(origin)
-                    return normalized
             except json.JSONDecodeError:
-                pass
+                normalized = []
+        else:
+            for item in raw.split(","):
+                origin = item.strip().strip('"\'').rstrip('/')
+                if origin:
+                    normalized.append(origin)
 
-        normalized = []
-        for item in raw.split(","):
-            origin = item.strip().strip('"\'').rstrip('/')
-            if origin:
-                normalized.append(origin)
-        return normalized
+        # Always include local dev origins to prevent preflight 400 in local frontend testing
+        normalized.extend(self.DEV_CORS_ORIGINS)
+
+        # Return unique origins preserving insertion order
+        return list(dict.fromkeys(normalized))
 
     def get_cors_origin_regex(self) -> str:
         configured = (self.CORS_ORIGIN_REGEX or "").strip().strip('"\'')
-        fallback = r"^https://.*\.vercel\.app$|^http://localhost(:\d+)?$|^http://127\.0\.0\.1(:\d+)?$"
+        local_fallback = r"^http://localhost(:\d+)?$|^http://127\.0\.0\.1(:\d+)?$"
 
         if configured:
             try:
                 re.compile(configured)
-                return configured
+                return rf"(?:{configured})|(?:{local_fallback})"
             except re.error:
                 pass
 
-        return fallback
+        return rf"^https://.*\.vercel\.app$|{local_fallback}"
 
 
 def get_available_models_formatted() -> str:

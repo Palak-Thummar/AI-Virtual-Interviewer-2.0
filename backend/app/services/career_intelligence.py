@@ -69,9 +69,9 @@ def rebuild_user_intelligence(user_id: str) -> Dict:
 
     completed_interviews = [item for item in interviews if item.get("status") == "completed"]
     completed_count = len(completed_interviews)
-    total_interviews = completed_count
-    pending_count = 0
-    completion_rate = 100.0 if completed_count > 0 else 0
+    total_interviews = len(interviews)
+    pending_count = total_interviews - completed_count
+    completion_rate = round((completed_count / total_interviews) * 100, 2) if total_interviews else 0
 
     score_values = [_extract_total_score(item) for item in completed_interviews]
     average_score = round(sum(score_values) / len(score_values), 2) if score_values else 0

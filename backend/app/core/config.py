@@ -3,9 +3,10 @@ Application configuration and settings.
 Handles environment variables and app-wide constants.
 """
 
+import json
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
-from typing import List
+from typing import List, Optional
 from openai import OpenAI
 
 class Settings(BaseSettings):
@@ -42,11 +43,23 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: list = ["pdf", "docx"]
     
     # CORS
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173"
-    ]
+    CORS_ORIGINS: str = "http://localhost:5173"
+    CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\.vercel\.app"
+
+    def get_cors_origins(self) -> List[str]:
+        raw = (self.CORS_ORIGINS or "").strip()
+        if not raw:
+            return []
+
+        if raw.startswith("["):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+            except json.JSONDecodeError:
+                pass
+
+        return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def get_available_models_formatted() -> str:

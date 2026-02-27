@@ -7,7 +7,15 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import axios from 'axios';
 
 const InterviewContext = createContext(null);
-const SERVER_BASE = 'http://localhost:8000';
+const PROD_FALLBACK_API = 'https://ai-virtual-interviewer-2-0.onrender.com';
+const configuredBase = (import.meta.env.VITE_API_SERVER_URL || '').trim();
+const isLocalhostUrl = (url) => /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url);
+
+const SERVER_BASE = (
+  import.meta.env.PROD && (!configuredBase || isLocalhostUrl(configuredBase))
+    ? PROD_FALLBACK_API
+    : (configuredBase || 'http://localhost:8000')
+).replace(/\/$/, '');
 const interviewClient = axios.create({
   baseURL: SERVER_BASE,
   headers: {

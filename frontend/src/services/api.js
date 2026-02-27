@@ -5,9 +5,14 @@
 
 import axios from 'axios';
 
+const PROD_FALLBACK_API = 'https://ai-virtual-interviewer-2-0.onrender.com';
+const configuredBase = (import.meta.env.VITE_API_SERVER_URL || '').trim();
+const isLocalhostUrl = (url) => /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url);
+
 const SERVER_BASE = (
-  import.meta.env.VITE_API_SERVER_URL ||
-  (import.meta.env.PROD ? 'https://ai-virtual-interviewer-2-0.onrender.com' : 'http://localhost:8000')
+  import.meta.env.PROD && (!configuredBase || isLocalhostUrl(configuredBase))
+    ? PROD_FALLBACK_API
+    : (configuredBase || 'http://localhost:8000')
 ).replace(/\/$/, '');
 const API_BASE = `${SERVER_BASE}/api`;
 

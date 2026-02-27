@@ -18,7 +18,7 @@ const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Interviews', to: '/interviews', icon: Users },
   { label: 'Company Prep', to: '/company-prep', icon: Building2 },
-  { label: 'Career Intelligence', to: '/analytics', icon: BarChart3 },
+  { label: 'Career Intelligence', to: '/career-intelligence', icon: BarChart3 },
   { label: 'Coding Practice', to: '/coding-practice', icon: Code2 },
   { label: 'Answer Lab', to: '/answer-lab', icon: MessageSquareText },
   { label: 'Resume Rewriter', to: '/resume-rewriter', icon: FilePenLine },
@@ -33,7 +33,7 @@ export const Sidebar = ({ isOpen, onNavigate }) => {
           <Sparkles size={18} />
         </span>
         <div>
-          <p className={styles.brandTitle}>AI Interviewer</p>
+          <p className={styles.brandTitle}>CareerIQ</p>
           <p className={styles.brandSub}>SaaS Workspace</p>
         </div>
       </div>

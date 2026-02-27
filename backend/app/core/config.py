@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
     
     # App settings
-    APP_NAME: str = "AI Virtual Interviewer"
+    APP_NAME: str = "CareerIQ"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: list = ["pdf", "docx"]
     
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "https://ai-virtual-interviewer-2-0.vercel.app"
     CORS_ORIGIN_REGEX: Optional[str] = r"https://.*\.vercel\.app"
 
     def get_cors_origins(self) -> List[str]:

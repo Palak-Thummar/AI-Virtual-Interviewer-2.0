@@ -10,6 +10,7 @@ import { InterviewProvider } from './context/InterviewContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/Dashboard';
 import { InterviewSetupPage } from './pages/InterviewSetupPage';
 import { InterviewSessionPage } from './pages/InterviewSession';
@@ -41,6 +42,9 @@ const ProtectedLayout = () => {
 // App Routes
 const AppRoutes = () => (
   <Routes>
+    {/* Public Landing */}
+    <Route path="/" element={<LandingPage />} />
+
     {/* Auth Routes */}
     <Route path="/login" element={<LoginPage />} />
     <Route path="/register" element={<RegisterPage />} />
@@ -54,6 +58,7 @@ const AppRoutes = () => (
       <Route path="/coding-practice" element={<CodingPracticePage />} />
       <Route path="/interview/:interviewId" element={<InterviewSessionPage />} />
       <Route path="/results/:interviewId" element={<ResultsPage />} />
+      <Route path="/career-intelligence" element={<CareerIntelligencePage />} />
       <Route path="/analytics" element={<CareerIntelligencePage />} />
       <Route path="/answer-lab" element={<AnswerLabPage />} />
       <Route path="/resume-rewriter" element={<ResumeRewriterPage />} />
@@ -61,8 +66,7 @@ const AppRoutes = () => (
     </Route>
 
     {/* Redirects */}
-    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
 );
 

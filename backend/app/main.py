@@ -15,7 +15,7 @@ from app.api.dependencies import get_current_user
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="AI-powered Virtual Interviewer Platform"
+    description="CareerIQ - AI-powered interview preparation platform"
 )
 
 # Configure CORS
@@ -34,7 +34,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize on startup."""
-    print("[STARTUP] Starting AI Virtual Interviewer Backend")
+    print("[STARTUP] Starting CareerIQ Backend")
     print(f"   - App: {settings.APP_NAME}")
     print(f"   - Version: {settings.APP_VERSION}")
     print(f"   - Debug: {settings.DEBUG}")
@@ -132,7 +132,7 @@ app.include_router(coding.router, dependencies=[Depends(get_current_user)])
 async def root():
     """Root endpoint."""
     return {
-        "message": "Welcome to AI Virtual Interviewer API",
+        "message": "Welcome to CareerIQ API",
         "version": settings.APP_VERSION,
         "docs": "/docs"
     }

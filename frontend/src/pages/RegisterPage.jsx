@@ -46,7 +46,7 @@ export const RegisterPage = () => {
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm backdrop-blur">
             <Sparkles className="h-4 w-4" />
-            AI Interviewer Platform
+            CareerIQ Platform
           </div>
           <div className="space-y-4">
             <h1 className="text-4xl font-bold tracking-tight">Build confidence with every practice round.</h1>

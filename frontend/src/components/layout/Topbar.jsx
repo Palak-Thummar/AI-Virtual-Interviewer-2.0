@@ -8,6 +8,7 @@ const titleMap = {
   '/dashboard': 'Dashboard',
   '/interviews': 'Interview History',
   '/company-prep': 'Company Interview Prep',
+  '/career-intelligence': 'Career Intelligence',
   '/analytics': 'Career Intelligence',
   '/setup': 'Interview Setup',
   '/coding-practice': 'Coding Practice',

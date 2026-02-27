@@ -53,7 +53,7 @@ export const LoginPage = () => {
           className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-card"
         >
           <h2 className="headline-2">Sign in</h2>
-          <p className="mt-1 body-text">Welcome back to your AI Interviewer workspace.</p>
+          <p className="mt-1 body-text">Welcome back to your CareerIQ workspace.</p>
 
           {error ? (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500">{error}</div>

@@ -55,11 +55,27 @@ class Settings(BaseSettings):
             try:
                 parsed = json.loads(raw)
                 if isinstance(parsed, list):
-                    return [str(item).strip() for item in parsed if str(item).strip()]
+                    normalized = []
+                    for item in parsed:
+                        origin = str(item).strip().strip('"\'').rstrip('/')
+                        if origin:
+                            normalized.append(origin)
+                    return normalized
             except json.JSONDecodeError:
                 pass
 
-        return [item.strip() for item in raw.split(",") if item.strip()]
+        normalized = []
+        for item in raw.split(","):
+            origin = item.strip().strip('"\'').rstrip('/')
+            if origin:
+                normalized.append(origin)
+        return normalized
+
+    def get_cors_origin_regex(self) -> str:
+        configured = (self.CORS_ORIGIN_REGEX or "").strip()
+        if configured:
+            return configured
+        return r"^https://.*\.vercel\.app$|^http://localhost(:\d+)?$|^http://127\.0\.0\.1(:\d+)?$"
 
 
 def get_available_models_formatted() -> str:

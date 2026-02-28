@@ -57,9 +57,27 @@ def _get_stored_jd_analysis(interview: dict) -> dict:
     }
 
 
+def _has_meaningful_jd_analysis(data: dict) -> bool:
+    if not isinstance(data, dict):
+        return False
+
+    ats_score = data.get("ats_score")
+    has_ats = ats_score is not None
+
+    matched = len(data.get("matched_skills") or []) > 0
+    missing = len(data.get("missing_skills") or []) > 0
+    keywords = len(data.get("keyword_gaps") or []) > 0
+    suggestions = len(data.get("improvement_suggestions") or []) > 0
+    tips = len(data.get("ats_optimization_tips") or []) > 0
+    experience = bool(str(data.get("experience_gap") or "").strip())
+
+    has_details = matched or missing or keywords or suggestions or tips or experience
+    return has_ats and has_details
+
+
 async def _resolve_jd_analysis(interview: dict, resumes_collection) -> dict:
     stored = _get_stored_jd_analysis(interview)
-    if stored.get("ats_score") is not None:
+    if _has_meaningful_jd_analysis(stored):
         return stored
 
     resume = None

@@ -18,6 +18,19 @@ client = OpenAI(
 )
 
 
+TECH_KEYWORDS = [
+    "python", "java", "javascript", "typescript", "go", "golang", "c", "c++", "c#", "rust",
+    "react", "angular", "vue", "next.js", "node.js", "express", "fastapi", "django", "flask", "spring",
+    "html", "css", "tailwind", "bootstrap", "redux",
+    "sql", "mysql", "postgresql", "mongodb", "redis", "elasticsearch", "dynamodb", "oracle",
+    "aws", "azure", "gcp", "docker", "kubernetes", "terraform", "ansible", "jenkins", "github actions",
+    "ci/cd", "git", "linux", "bash", "microservices", "rest", "graphql", "grpc", "websocket",
+    "system design", "distributed systems", "scalability", "performance", "caching", "security", "oauth", "jwt",
+    "machine learning", "deep learning", "nlp", "data science", "pandas", "numpy", "pytorch", "tensorflow",
+    "spark", "hadoop", "airflow", "etl", "tableau", "power bi", "pytest", "unit testing", "integration testing"
+]
+
+
 async def analyze_resume_against_jd(
     resume_text: str,
     job_description: str
@@ -50,6 +63,8 @@ async def analyze_resume_against_jd(
         print("[JD Analyzer] WARNING: Empty job description provided")
         return _get_default_analysis_response("Empty job description")
     
+    fallback = _build_fallback_skill_analysis(resume_text, job_description)
+
     # First, get the analysis
     try:
         print(f"[JD Analyzer] Starting analysis with resume length: {len(resume_text)}, JD length: {len(job_description)}")
@@ -58,11 +73,23 @@ async def analyze_resume_against_jd(
         matched_skills = await extract_matched_skills(resume_text, job_description)
         missing_skills = await extract_missing_skills(resume_text, job_description)
         keyword_gaps = await extract_keyword_gaps(resume_text, job_description)
+
+        matched_skills = _merge_unique_strings(matched_skills, fallback["matched_skills"], limit=20)
+        missing_skills = _merge_unique_strings(missing_skills, fallback["missing_skills"], limit=20)
+        keyword_gaps = _merge_unique_strings(keyword_gaps, fallback["keyword_gaps"], limit=20)
         
         # Get ATS score directly from OpenRouter (not from formula)
         print(f"[JD Analyzer] Requesting ATS score from OpenRouter...")
-        ats_score = await calculate_ats_score_from_openrouter(resume_text, job_description)
-        print(f"[JD Analyzer] OpenRouter calculated ATS Score: {ats_score}%")
+        ats_score_ai = await calculate_ats_score_from_openrouter(resume_text, job_description)
+        heuristic_score = float(fallback["ats_score"])
+
+        if abs(ats_score_ai - 50.0) < 0.001:
+            ats_score = heuristic_score
+        else:
+            ats_score = round((ats_score_ai * 0.7) + (heuristic_score * 0.3), 2)
+
+        ats_score = min(max(float(ats_score), 0.0), 100.0)
+        print(f"[JD Analyzer] OpenRouter ATS: {ats_score_ai}%, Heuristic ATS: {heuristic_score}%, Final ATS: {ats_score}%")
         
         # Get suggestions in parallel
         improvement_suggestions = await get_improvement_suggestions(resume_text, job_description)
@@ -82,11 +109,16 @@ async def analyze_resume_against_jd(
         }
         
         print(f"[JD Analyzer] Analysis complete. Final ATS Score: {result['ats_score']}%")
-        return result
+        return _validate_analysis_response(result)
         
     except Exception as e:
         print(f"[JD Analyzer] ERROR in analyze_resume_against_jd: {str(e)}")
-        return _get_default_analysis_response(str(e))
+        failed_result = _get_default_analysis_response(str(e))
+        failed_result["matched_skills"] = fallback.get("matched_skills", [])
+        failed_result["missing_skills"] = fallback.get("missing_skills", [])
+        failed_result["keyword_gaps"] = fallback.get("keyword_gaps", [])
+        failed_result["ats_score"] = fallback.get("ats_score", failed_result.get("ats_score", 50.0))
+        return _validate_analysis_response(failed_result)
 
 
 async def generate_ats_optimization_tips(
@@ -430,6 +462,80 @@ async def _call_openrouter(prompt: str) -> str:
         available = get_available_models_formatted()
         print(f"[OpenRouter] Models available: {available}")
         raise Exception(f"OpenRouter API error: {str(e)}. Available models: {available}")
+
+
+def _normalize_term(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value).strip().lower())
+
+
+def _merge_unique_strings(primary: List[str], fallback: List[str], limit: int = 20) -> List[str]:
+    merged: List[str] = []
+    seen = set()
+
+    for source in (primary or []), (fallback or []):
+        for item in source:
+            cleaned = str(item).strip()
+            if not cleaned:
+                continue
+            key = _normalize_term(cleaned)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(cleaned)
+            if len(merged) >= limit:
+                return merged
+
+    return merged
+
+
+def _extract_technical_terms_from_text(text: str) -> List[str]:
+    content = str(text or "").lower()
+    found = []
+    seen = set()
+
+    for keyword in TECH_KEYWORDS:
+        token = keyword.lower().strip()
+        if not token:
+            continue
+
+        pattern = r"(?<!\w)" + re.escape(token) + r"(?!\w)"
+        if re.search(pattern, content):
+            normalized = _normalize_term(token)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            found.append(keyword)
+
+    return found
+
+
+def _build_fallback_skill_analysis(resume_text: str, job_description: str) -> dict:
+    resume_terms = _extract_technical_terms_from_text(resume_text)
+    jd_terms = _extract_technical_terms_from_text(job_description)
+
+    resume_set = {_normalize_term(term) for term in resume_terms}
+
+    matched = []
+    missing = []
+    for term in jd_terms:
+        normalized = _normalize_term(term)
+        if normalized in resume_set:
+            matched.append(term)
+        else:
+            missing.append(term)
+
+    if jd_terms:
+        coverage = len(matched) / len(jd_terms)
+        heuristic_ats = round(35.0 + (coverage * 60.0), 2)
+    else:
+        heuristic_ats = 50.0
+
+    return {
+        "ats_score": min(max(float(heuristic_ats), 0.0), 100.0),
+        "matched_skills": matched[:20],
+        "missing_skills": missing[:20],
+        "keyword_gaps": missing[:20]
+    }
 
 
 def _parse_json_response(response: str) -> dict:

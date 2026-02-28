@@ -26,6 +26,59 @@ from app.core.database import get_collection
 router = APIRouter(prefix="/api/interview", tags=["interview"])
 
 
+def _default_jd_analysis(error_message: str = "") -> dict:
+    return {
+        "ats_score": 50.0,
+        "matched_skills": [],
+        "missing_skills": [],
+        "keyword_gaps": [],
+        "experience_gap": error_message,
+        "improvement_suggestions": [],
+        "ats_optimization_tips": []
+    }
+
+
+def _get_stored_jd_analysis(interview: dict) -> dict:
+    skill_match = interview.get("skill_match") or {}
+    resume_suggestions = interview.get("resume_suggestions") or {}
+
+    ats_score = skill_match.get("ats_score")
+    if ats_score is None:
+        ats_score = interview.get("ats_score", 50.0)
+
+    return {
+        "ats_score": ats_score,
+        "matched_skills": skill_match.get("matched_skills", interview.get("matched_skills", [])),
+        "missing_skills": skill_match.get("missing_skills", interview.get("missing_skills", [])),
+        "keyword_gaps": skill_match.get("keyword_gaps", interview.get("keyword_gaps", [])),
+        "experience_gap": skill_match.get("experience_gap", interview.get("experience_gap", "")),
+        "improvement_suggestions": resume_suggestions.get("improvement_suggestions", interview.get("improvement_suggestions", [])),
+        "ats_optimization_tips": resume_suggestions.get("ats_optimization_tips", interview.get("ats_optimization_tips", []))
+    }
+
+
+async def _resolve_jd_analysis(interview: dict, resumes_collection) -> dict:
+    stored = _get_stored_jd_analysis(interview)
+    if stored.get("ats_score") is not None:
+        return stored
+
+    resume = None
+    resume_id = interview.get("resume_id")
+    if resume_id:
+        resume = resumes_collection.find_one({"_id": resume_id})
+
+    resume_text = resume.get("parsed_text", "") if resume else ""
+    jd_text = interview.get("job_description", "")
+
+    if not jd_text or not jd_text.strip():
+        return _default_jd_analysis("Job description not available for resume match analysis")
+
+    try:
+        return await analyze_resume_against_jd(resume_text, jd_text)
+    except Exception as e:
+        return _default_jd_analysis(f"Analysis error: {str(e)}")
+
+
 def _get_preferred_question_count(current_user_id: str, fallback: int = 5) -> int:
     preferences_collection = get_collection("user_preferences")
     prefs = preferences_collection.find_one({"user_id": ObjectId(current_user_id)})
@@ -361,6 +414,7 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
         )
 
     if interview.get("status") == "completed":
+        jd_analysis = await _resolve_jd_analysis(interview, resumes_collection)
         answers = interview.get("answers", [])
         question_scores = [
             AnswerEvaluationResponse(
@@ -379,15 +433,15 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
             job_role=interview.get("role", ""),
             question_scores=question_scores,
             skill_match=SkillMatch(
-                matched_skills=[],
-                missing_skills=[],
-                ats_score=0,
-                keyword_gaps=[],
-                experience_gap=""
+                matched_skills=jd_analysis.get("matched_skills", []),
+                missing_skills=jd_analysis.get("missing_skills", []),
+                ats_score=jd_analysis.get("ats_score", 50.0),
+                keyword_gaps=jd_analysis.get("keyword_gaps", []),
+                experience_gap=jd_analysis.get("experience_gap", "")
             ),
             resume_suggestions=ResumeSuggestion(
-                improvement_suggestions=[],
-                ats_optimization_tips=[]
+                improvement_suggestions=jd_analysis.get("improvement_suggestions", []),
+                ats_optimization_tips=jd_analysis.get("ats_optimization_tips", [])
             ),
             completed_at=interview.get("completed_at") or interview.get("updated_at") or datetime.utcnow()
         )
@@ -414,25 +468,9 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     jd_text = interview.get("job_description", "")
 
     try:
-        jd_analysis = await analyze_resume_against_jd(resume_text, jd_text) if jd_text else {
-            "ats_score": 0,
-            "matched_skills": [],
-            "missing_skills": [],
-            "keyword_gaps": [],
-            "experience_gap": "",
-            "improvement_suggestions": [],
-            "ats_optimization_tips": []
-        }
+        jd_analysis = await analyze_resume_against_jd(resume_text, jd_text) if jd_text else _default_jd_analysis("Job description not provided")
     except Exception as e:
-        jd_analysis = {
-            "ats_score": 0,
-            "matched_skills": [],
-            "missing_skills": [],
-            "keyword_gaps": [],
-            "experience_gap": f"Analysis error: {str(e)}",
-            "improvement_suggestions": [],
-            "ats_optimization_tips": []
-        }
+        jd_analysis = _default_jd_analysis(f"Analysis error: {str(e)}")
 
     answers = interview.get("answers", [])
     session_eval = {"communication_score": 0}
@@ -471,6 +509,18 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     }
 
     completed_at = datetime.utcnow()
+    skill_match_data = {
+        "matched_skills": jd_analysis.get("matched_skills", []),
+        "missing_skills": jd_analysis.get("missing_skills", []),
+        "ats_score": jd_analysis.get("ats_score", 50.0),
+        "keyword_gaps": jd_analysis.get("keyword_gaps", []),
+        "experience_gap": jd_analysis.get("experience_gap", "")
+    }
+    resume_suggestions_data = {
+        "improvement_suggestions": jd_analysis.get("improvement_suggestions", []),
+        "ats_optimization_tips": jd_analysis.get("ats_optimization_tips", [])
+    }
+
     interviews_collection.update_one(
         {"_id": ObjectId(interview_id), "status": "pending"},
         {
@@ -478,6 +528,8 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
                 "status": "completed",
                 "total_score": round(float(overall_score or 0), 2),
                 "skill_scores": skill_breakdown,
+                "skill_match": skill_match_data,
+                "resume_suggestions": resume_suggestions_data,
                 "current_question_index": len(interview.get("questions", [])),
                 "completed_at": completed_at,
                 "updated_at": completed_at
@@ -499,16 +551,16 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     ]
 
     skill_match = SkillMatch(
-        matched_skills=jd_analysis.get("matched_skills", []),
-        missing_skills=jd_analysis.get("missing_skills", []),
-        ats_score=jd_analysis.get("ats_score", 0),
-        keyword_gaps=jd_analysis.get("keyword_gaps", []),
-        experience_gap=jd_analysis.get("experience_gap", "")
+        matched_skills=skill_match_data["matched_skills"],
+        missing_skills=skill_match_data["missing_skills"],
+        ats_score=skill_match_data["ats_score"],
+        keyword_gaps=skill_match_data["keyword_gaps"],
+        experience_gap=skill_match_data["experience_gap"]
     )
 
     resume_suggestions = ResumeSuggestion(
-        improvement_suggestions=jd_analysis.get("improvement_suggestions", []),
-        ats_optimization_tips=jd_analysis.get("ats_optimization_tips", [])
+        improvement_suggestions=resume_suggestions_data["improvement_suggestions"],
+        ats_optimization_tips=resume_suggestions_data["ats_optimization_tips"]
     )
 
     return InterviewResults(

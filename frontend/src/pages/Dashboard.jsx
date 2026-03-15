@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,7 +13,8 @@ import {
   Bar
 } from 'recharts';
 import { BriefcaseBusiness, BrainCircuit, Gauge, Loader2, Sparkles, Trophy } from 'lucide-react';
-import { analyticsAPI } from '../services/api';
+import { analyticsAPI, parseApiError, resumeAPI, settingsAPI } from '../services/api';
+import { Modal, TextArea } from '../components/UI';
 import styles from './Dashboard.module.css';
 
 const statusClassMap = {
@@ -21,21 +23,34 @@ const statusClassMap = {
 };
 
 export const DashboardPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [summary, setSummary] = useState(null);
+  const [resume, setResume] = useState(null);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState('');
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [jobDescription, setJobDescription] = useState('');
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         setError('');
-        await analyticsAPI.getCareerIntelligence();
-        const response = await analyticsAPI.getSummary();
-        setSummary(response?.data || null);
+        const [summaryResponse, resumeResponse, resumeListResponse] = await Promise.all([
+          analyticsAPI.getSummary(),
+          settingsAPI.getResume(),
+          resumeAPI.list()
+        ]);
+        const resumeList = resumeListResponse?.data?.resumes || [];
+        const fallbackResume = resumeList.length > 0 ? { resume_id: resumeList[0].id, file_name: resumeList[0].file_name } : null;
+        setSummary(summaryResponse?.data || null);
+        setResume(resumeResponse?.data?.resume_id ? resumeResponse.data : fallbackResume);
       } catch (err) {
-        setError(err?.response?.data?.detail || 'Failed to load dashboard.');
+        setError(parseApiError(err, 'Failed to load dashboard.'));
       } finally {
         setLoading(false);
       }
@@ -51,24 +66,55 @@ export const DashboardPage = () => {
     const strongest = summary?.strongest_skill || '-';
 
     return [
-      { label: 'Total Interviews', value: total, icon: BriefcaseBusiness },
-      { label: 'Average Score', value: `${avg}%`, icon: Gauge },
-      { label: 'Role Readiness', value: `${readiness}%`, icon: Trophy },
-      { label: 'Strongest Skill', value: strongest, icon: BrainCircuit }
+      { label: t('dashboard.kpis.totalInterviews'), value: total, icon: BriefcaseBusiness },
+      { label: t('dashboard.kpis.averageScore'), value: `${avg}%`, icon: Gauge },
+      { label: t('dashboard.kpis.roleReadiness'), value: `${readiness}%`, icon: Trophy },
+      { label: t('dashboard.kpis.strongestSkill'), value: strongest, icon: BrainCircuit }
     ];
-  }, [summary]);
+  }, [summary, t]);
 
   const trend = Array.isArray(summary?.trend) ? summary.trend : [];
   const skills = summary?.skill_breakdown || {};
   const skillBreakdown = Object.entries(skills).map(([skill, value]) => ({ skill, value: Number(value || 0) }));
   const recent = Array.isArray(summary?.recent_interviews) ? summary.recent_interviews : [];
 
+  const handleAnalyzeResume = async () => {
+    if (!resume?.resume_id) {
+      navigate('/settings?section=resume');
+      return;
+    }
+    setAnalysisResult(null);
+    setAnalysisError('');
+    setAnalysisOpen(true);
+  };
+
+  const runResumeAnalysis = async () => {
+    if (!jobDescription.trim()) {
+      setAnalysisError(t('setup.validation.jobDescription'));
+      return;
+    }
+
+    try {
+      setAnalysisLoading(true);
+      setAnalysisError('');
+      const response = await resumeAPI.analyze(resume.resume_id, {
+        resume_id: resume.resume_id,
+        job_description: jobDescription.trim()
+      });
+      setAnalysisResult(response?.data || null);
+    } catch (err) {
+      setAnalysisError(parseApiError(err, 'Failed to run resume analysis.'));
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.page}>
         <div className={styles.emptyState}>
           <Loader2 className={styles.spin} size={26} />
-          <p className={styles.emptyTitle}>Loading dashboard...</p>
+          <p className={styles.emptyTitle}>{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -80,7 +126,7 @@ export const DashboardPage = () => {
         <div className={styles.emptyState}>
           <p className={styles.emptyTitle}>{error}</p>
           <button type="button" className={styles.primaryButton} onClick={() => window.location.reload()}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -93,11 +139,14 @@ export const DashboardPage = () => {
     <div className={styles.page}>
       <section className={styles.hero}>
         <div className={styles.heroContent}>
-          <h2 className={styles.heroTitle}>CareerIQ Dashboard</h2>
-          <p className={styles.heroSubtitle}>Live intelligence from your completed interview sessions.</p>
+          <h2 className={styles.heroTitle}>{t('dashboard.title')}</h2>
+          <p className={styles.heroSubtitle}>{t('dashboard.subtitle')}</p>
           <div className={styles.heroActions}>
             <button type="button" className={styles.primaryButton} onClick={() => navigate('/setup')}>
-              Start New Interview
+              {t('common.startNewInterview')}
+            </button>
+            <button type="button" className={styles.secondaryButton} onClick={handleAnalyzeResume}>
+              {t('dashboard.analyzeResume')}
             </button>
           </div>
         </div>
@@ -124,9 +173,10 @@ export const DashboardPage = () => {
             <div className={styles.emptyIllustration}>
               <Sparkles size={28} />
             </div>
-            <p className={styles.emptyTitle}>No completed interviews yet.</p>
+            <p className={styles.emptyTitle}>{t('dashboard.emptyTitle')}</p>
+            <p className={styles.heroSubtitle}>{t('dashboard.emptySubtitle')}</p>
             <button type="button" className={styles.primaryButton} onClick={() => navigate('/setup')}>
-              Begin Interview
+              {t('common.startInterview')}
             </button>
           </div>
         </section>
@@ -134,7 +184,7 @@ export const DashboardPage = () => {
         <>
           <section className={styles.gridTwo}>
             <article className={styles.chartCard}>
-              <h3 className={styles.sectionTitle}>Performance Trend</h3>
+              <h3 className={styles.sectionTitle}>{t('dashboard.performanceTrend')}</h3>
               <div className={styles.chartWrap}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trend} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
@@ -149,7 +199,7 @@ export const DashboardPage = () => {
             </article>
 
             <article className={styles.chartCard}>
-              <h3 className={styles.sectionTitle}>Skill Breakdown</h3>
+              <h3 className={styles.sectionTitle}>{t('dashboard.skillBreakdown')}</h3>
               <div className={styles.chartWrap}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={skillBreakdown} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
@@ -165,19 +215,19 @@ export const DashboardPage = () => {
           </section>
 
           <section className={styles.tableCard}>
-            <h3 className={styles.sectionTitle}>Recent Activity</h3>
+            <h3 className={styles.sectionTitle}>{t('dashboard.recentActivity')}</h3>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Role</th>
-                    <th>Score</th>
-                    <th>Date</th>
-                    <th>Status</th>
+                    <th>{t('history.role')}</th>
+                    <th>{t('history.score')}</th>
+                    <th>{t('history.date')}</th>
+                    <th>{t('history.status')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recent.map((item) => {
+                  {recent.length > 0 ? recent.map((item) => {
                     const status = String(item?.status || '').toLowerCase() || 'completed';
                     return (
                       <tr key={item.interview_id}>
@@ -191,13 +241,52 @@ export const DashboardPage = () => {
                         </td>
                       </tr>
                     );
-                  })}
+                  }) : (
+                    <tr>
+                      <td colSpan="4">{t('dashboard.noRecentActivity')}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </section>
         </>
       )}
+
+      <Modal isOpen={analysisOpen} onClose={() => setAnalysisOpen(false)} title={t('dashboard.resumeAnalysisTitle')}>
+        <div style={{ display: 'grid', gap: 16 }}>
+          {!resume?.resume_id ? <div>{t('dashboard.resumeMissing')}</div> : null}
+          {resume?.resume_id ? (
+            <>
+              <p>{t('dashboard.analyzeResumeDescription')}</p>
+              <TextArea
+                label={t('dashboard.jobDescription')}
+                value={jobDescription}
+                onChange={(event) => setJobDescription(event.target.value)}
+                placeholder={t('dashboard.jobDescriptionPlaceholder')}
+                rows={6}
+              />
+              {analysisError ? <div className={styles.emptyTitle}>{analysisError}</div> : null}
+              {analysisResult ? (
+                <div className={styles.tableCard} style={{ padding: 16 }}>
+                  <p><strong>{t('results.atsScore')}</strong> {Math.round(Number(analysisResult?.ats_score || 0))}%</p>
+                  <p><strong>{t('results.matchedSkills')}</strong> {(analysisResult?.matched_skills || []).join(', ') || '-'}</p>
+                  <p><strong>{t('results.missingSkills')}</strong> {(analysisResult?.missing_skills || []).join(', ') || '-'}</p>
+                  <p><strong>{t('results.keywordGaps')}</strong> {(analysisResult?.keyword_gaps || []).join(', ') || '-'}</p>
+                </div>
+              ) : null}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" className={styles.secondaryButton} onClick={() => setAnalysisOpen(false)}>
+                  {t('common.cancel')}
+                </button>
+                <button type="button" className={styles.primaryButton} onClick={runResumeAnalysis} disabled={analysisLoading}>
+                  {analysisLoading ? t('common.loading') : t('dashboard.runAnalysis')}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </Modal>
     </div>
   );
 };

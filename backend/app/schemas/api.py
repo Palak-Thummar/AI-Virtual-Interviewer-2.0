@@ -70,6 +70,7 @@ class InterviewSetup(BaseModel):
     job_description: str = Field(..., min_length=10)
     resume_id: str
     num_questions: Optional[int] = Field(default=None, ge=1, le=20)
+    programming_language: Optional[str] = Field(default=None, max_length=30)
 
 
 class InterviewCreateResponse(BaseModel):
@@ -79,6 +80,7 @@ class InterviewCreateResponse(BaseModel):
     domain: str
     num_questions: int
     questions: List[str]
+    programming_language: Optional[str] = None
 
 
 # ============= INTERVIEW SESSION SCHEMAS =============

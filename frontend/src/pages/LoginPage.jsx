@@ -3,21 +3,33 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Sparkles } from 'lucide-react';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export const LoginPage = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const { login, loading, error } = useAuth();
   const navigate = useNavigate();
+  const [sessionError, setSessionError] = useState('');
+
+  useEffect(() => {
+    const reason = sessionStorage.getItem('authRedirectReason');
+    if (reason) {
+      setSessionError(reason);
+      sessionStorage.removeItem('authRedirectReason');
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
 
-    if (!email) setErrors(prev => ({ ...prev, email: 'Email is required' }));
-    if (!password) setErrors(prev => ({ ...prev, password: 'Password is required' }));
+    if (!email) setErrors((prev) => ({ ...prev, email: t('auth.validation.emailRequired') }));
+    if (!password) setErrors((prev) => ({ ...prev, password: t('auth.validation.passwordRequired') }));
 
     if (!email || !password) return;
 
@@ -36,11 +48,11 @@ export const LoginPage = () => {
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm backdrop-blur">
             <Sparkles className="h-4 w-4" />
-            Premium Interview Prep
+            {t('auth.premiumBadge')}
           </div>
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight">Ace every interview with structured AI practice.</h1>
-            <p className="max-w-md text-white/85">Practice role-specific interviews, get actionable feedback, and improve with real performance signals.</p>
+            <h1 className="text-4xl font-bold tracking-tight">{t('auth.heroTitleLogin')}</h1>
+            <p className="max-w-md text-white/85">{t('auth.heroTextLogin')}</p>
           </div>
         </div>
       </div>
@@ -52,8 +64,12 @@ export const LoginPage = () => {
           transition={{ duration: 0.45, ease: 'easeOut' }}
           className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-card"
         >
-          <h2 className="headline-2">Sign in</h2>
-          <p className="mt-1 body-text">Welcome back to your CareerIQ workspace.</p>
+          <h2 className="headline-2">{t('auth.signIn')}</h2>
+          <p className="mt-1 body-text">{t('auth.welcomeBack')}</p>
+
+          {sessionError ? (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{sessionError}</div>
+          ) : null}
 
           {error ? (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500">{error}</div>
@@ -72,7 +88,7 @@ export const LoginPage = () => {
                 className="peer h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pt-4 text-slate-800 outline-none transition-all duration-300 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <label htmlFor="email" className="pointer-events-none absolute left-4 top-3 -translate-y-0 text-sm text-slate-500 transition-all duration-300 ease-in-out peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
-                Email
+                {t('auth.email')}
               </label>
               {errors.email ? <p className="mt-1 text-xs text-red-500">{errors.email}</p> : null}
             </div>
@@ -89,7 +105,7 @@ export const LoginPage = () => {
                 className="peer h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pt-4 pr-11 text-slate-800 outline-none transition-all duration-300 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <label htmlFor="password" className="pointer-events-none absolute left-4 top-3 -translate-y-0 text-sm text-slate-500 transition-all duration-300 ease-in-out peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
-                Password
+                {t('auth.password')}
               </label>
               <button
                 type="button"
@@ -106,14 +122,14 @@ export const LoginPage = () => {
               disabled={loading}
               className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:scale-105 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? t('auth.loggingIn') : t('auth.login')}
             </button>
           </form>
 
           <p className="mt-6 text-sm text-slate-500">
-            Don&apos;t have an account?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to="/register" className="font-medium text-indigo-600 transition-all duration-300 ease-in-out hover:text-indigo-500">
-              Register now
+              {t('auth.registerNow')}
             </Link>
           </p>
         </motion.div>

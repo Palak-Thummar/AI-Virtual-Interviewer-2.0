@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import styles from './SettingsSections.module.css';
 
 export const ResumeSettings = () => {
+  const { t } = useTranslation();
   const fileInputRef = useRef(null);
   const resume = useSettingsStore((state) => state.resume);
   const uploadResume = useSettingsStore((state) => state.uploadResume);
@@ -19,7 +21,7 @@ export const ResumeSettings = () => {
       setMessage('');
       setError('');
       await uploadResume(file);
-      setMessage('Resume uploaded successfully.');
+      setMessage(t('settings.resume.uploadSuccess'));
     } catch (err) {
       setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to upload resume');
     } finally {
@@ -39,7 +41,7 @@ export const ResumeSettings = () => {
       setMessage('');
       setError('');
       await deleteResume();
-      setMessage('Resume deleted successfully.');
+      setMessage(t('settings.resume.deleteSuccess'));
     } catch (err) {
       setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to delete resume');
     } finally {
@@ -51,8 +53,8 @@ export const ResumeSettings = () => {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>Resume Management</h2>
-      <p className={styles.subtitle}>Upload your resume and review extracted skills.</p>
+      <h2 className={styles.title}>{t('settings.resume.title')}</h2>
+      <p className={styles.subtitle}>{t('settings.resume.subtitle')}</p>
 
       <input
         ref={fileInputRef}
@@ -74,29 +76,29 @@ export const ResumeSettings = () => {
           if (event.key === 'Enter' || event.key === ' ') fileInputRef.current?.click();
         }}
       >
-        Drag & drop PDF/DOCX resume here, or click to browse.
+        {t('settings.resume.dropzone')}
       </div>
 
       <div className={styles.grid}>
         <div className={styles.field}>
-          <label>File Name</label>
+          <label>{t('settings.resume.fileName')}</label>
           <input className={styles.input} value={resume?.file_name || '-'} disabled />
         </div>
         <div className={styles.field}>
-          <label>Last Updated</label>
+          <label>{t('settings.resume.lastUpdated')}</label>
           <input className={styles.input} value={uploadedAt} disabled />
         </div>
       </div>
 
       <div className={styles.field}>
-        <label>Extracted Skills</label>
+        <label>{t('settings.resume.extractedSkills')}</label>
         <div className={styles.skillWrap}>
           {(resume?.extracted_skills || []).map((skill) => (
             <span key={skill} className={styles.skillTag}>
               {skill}
             </span>
           ))}
-          {(resume?.extracted_skills || []).length === 0 ? <span className={styles.note}>No skills extracted yet.</span> : null}
+          {(resume?.extracted_skills || []).length === 0 ? <span className={styles.note}>{resume?.file_name ? t('settings.resume.noSkills') : t('settings.resume.empty')}</span> : null}
         </div>
       </div>
 
@@ -105,10 +107,10 @@ export const ResumeSettings = () => {
 
       <div className={styles.actions}>
         <button type="button" className={styles.secondaryButton} onClick={() => fileInputRef.current?.click()} disabled={loading}>
-          Replace Resume
+          {t('settings.resume.replace')}
         </button>
         <button type="button" className={styles.dangerButton} onClick={handleDelete} disabled={loading}>
-          Delete Resume
+          {t('settings.resume.delete')}
         </button>
       </div>
     </section>

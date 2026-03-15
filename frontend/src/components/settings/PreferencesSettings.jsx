@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import styles from './SettingsSections.module.css';
 
 const allQuestionTypes = ['mcq', 'coding', 'theory'];
 
 export const PreferencesSettings = () => {
+  const { t } = useTranslation();
   const preferences = useSettingsStore((state) => state.preferences);
   const updatePreferences = useSettingsStore((state) => state.updatePreferences);
 
@@ -40,7 +42,7 @@ export const PreferencesSettings = () => {
       setMessage('');
       setError('');
       await updatePreferences(form);
-      setMessage('Preferences updated successfully.');
+      setMessage(t('settings.preferences.saved'));
     } catch (err) {
       setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to update preferences');
     } finally {
@@ -50,12 +52,12 @@ export const PreferencesSettings = () => {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>AI Interview Preferences</h2>
-      <p className={styles.subtitle}>Control default interview generation behavior.</p>
+      <h2 className={styles.title}>{t('settings.preferences.title')}</h2>
+      <p className={styles.subtitle}>{t('settings.preferences.subtitle')}</p>
 
       <div className={styles.grid}>
         <div className={styles.field}>
-          <label>Default Question Count</label>
+          <label>{t('settings.preferences.defaultQuestionCount')}</label>
           <input
             type="number"
             min={1}
@@ -72,21 +74,21 @@ export const PreferencesSettings = () => {
         </div>
 
         <div className={styles.field}>
-          <label>Difficulty</label>
+          <label>{t('settings.preferences.difficulty')}</label>
           <select
             className={styles.select}
             value={form.difficulty}
             onChange={(event) => setForm((prev) => ({ ...prev, difficulty: event.target.value }))}
           >
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
+            <option value="easy">{t('settings.preferences.easy')}</option>
+            <option value="medium">{t('settings.preferences.medium')}</option>
+            <option value="hard">{t('settings.preferences.hard')}</option>
           </select>
         </div>
       </div>
 
       <div className={styles.field}>
-        <label>Question Types</label>
+        <label>{t('settings.preferences.questionTypes')}</label>
         <div className={styles.grid}>
           {allQuestionTypes.map((type) => (
             <label key={type} className={styles.checkRow}>
@@ -108,7 +110,7 @@ export const PreferencesSettings = () => {
             checked={form.include_dsa}
             onChange={(event) => setForm((prev) => ({ ...prev, include_dsa: event.target.checked }))}
           />
-          <span>Include DSA</span>
+          <span>{t('settings.preferences.includeDsa')}</span>
         </label>
         <label className={styles.checkRow}>
           <input
@@ -116,7 +118,7 @@ export const PreferencesSettings = () => {
             checked={form.include_system_design}
             onChange={(event) => setForm((prev) => ({ ...prev, include_system_design: event.target.checked }))}
           />
-          <span>Include System Design</span>
+          <span>{t('settings.preferences.includeSystemDesign')}</span>
         </label>
       </div>
 
@@ -125,7 +127,7 @@ export const PreferencesSettings = () => {
 
       <div className={styles.actions}>
         <button type="button" className={styles.primaryButton} onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Preferences'}
+          {saving ? t('settings.preferences.saving') : t('settings.preferences.save')}
         </button>
       </div>
     </section>

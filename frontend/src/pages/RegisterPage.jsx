@@ -3,8 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export const RegisterPage = () => {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,11 +22,11 @@ export const RegisterPage = () => {
     setErrors({});
 
     const newErrors = {};
-    if (!name) newErrors.name = 'Name is required';
-    if (!email) newErrors.email = 'Email is required';
-    if (!password) newErrors.password = 'Password is required';
-    if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    if (password && password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!name) newErrors.name = t('auth.validation.nameRequired');
+    if (!email) newErrors.email = t('auth.validation.emailRequired');
+    if (!password) newErrors.password = t('auth.validation.passwordRequired');
+    if (password !== confirmPassword) newErrors.confirmPassword = t('auth.validation.passwordsMismatch');
+    if (password && password.length < 6) newErrors.password = t('auth.validation.passwordLength');
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -46,11 +48,11 @@ export const RegisterPage = () => {
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm backdrop-blur">
             <Sparkles className="h-4 w-4" />
-            CareerIQ Platform
+            {t('auth.platformBadge')}
           </div>
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight">Build confidence with every practice round.</h1>
-            <p className="max-w-md text-white/85">Create your account and unlock role-specific mock interviews, analytics, and targeted improvement plans.</p>
+            <h1 className="text-4xl font-bold tracking-tight">{t('auth.heroTitleRegister')}</h1>
+            <p className="max-w-md text-white/85">{t('auth.heroTextRegister')}</p>
           </div>
         </div>
       </div>
@@ -62,8 +64,8 @@ export const RegisterPage = () => {
           transition={{ duration: 0.45, ease: 'easeOut' }}
           className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-card"
         >
-          <h2 className="headline-2">Create account</h2>
-          <p className="mt-1 body-text">Set up your workspace and start your first interview session.</p>
+          <h2 className="headline-2">{t('auth.createAccount')}</h2>
+          <p className="mt-1 body-text">{t('auth.registerIntro')}</p>
 
           {error ? (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500">{error}</div>
@@ -82,7 +84,7 @@ export const RegisterPage = () => {
                 className="peer h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pt-4 text-slate-800 outline-none transition-all duration-300 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <label htmlFor="full-name" className="pointer-events-none absolute left-4 top-3 text-sm text-slate-500 transition-all duration-300 ease-in-out peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
-                Full Name
+                {t('auth.fullName')}
               </label>
               {errors.name ? <p className="mt-1 text-xs text-red-500">{errors.name}</p> : null}
             </div>
@@ -99,7 +101,7 @@ export const RegisterPage = () => {
                 className="peer h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pt-4 text-slate-800 outline-none transition-all duration-300 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <label htmlFor="email" className="pointer-events-none absolute left-4 top-3 text-sm text-slate-500 transition-all duration-300 ease-in-out peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
-                Email
+                {t('auth.email')}
               </label>
               {errors.email ? <p className="mt-1 text-xs text-red-500">{errors.email}</p> : null}
             </div>
@@ -116,7 +118,7 @@ export const RegisterPage = () => {
                 className="peer h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pt-4 pr-11 text-slate-800 outline-none transition-all duration-300 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <label htmlFor="password" className="pointer-events-none absolute left-4 top-3 text-sm text-slate-500 transition-all duration-300 ease-in-out peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
-                Password
+                {t('auth.password')}
               </label>
               <button
                 type="button"
@@ -140,7 +142,7 @@ export const RegisterPage = () => {
                 className="peer h-12 w-full rounded-xl border border-slate-300 bg-white px-4 pt-4 pr-11 text-slate-800 outline-none transition-all duration-300 ease-in-out focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <label htmlFor="confirm-password" className="pointer-events-none absolute left-4 top-3 text-sm text-slate-500 transition-all duration-300 ease-in-out peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-indigo-600">
-                Confirm Password
+                {t('auth.confirmPassword')}
               </label>
               <button
                 type="button"
@@ -157,14 +159,14 @@ export const RegisterPage = () => {
               disabled={loading}
               className="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 ease-in-out hover:scale-105 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? t('auth.creatingAccount') : t('auth.createAccountButton')}
             </button>
           </form>
 
           <p className="mt-6 text-sm text-slate-500">
-            Already have an account?{' '}
+            {t('auth.haveAccount')}{' '}
             <Link to="/login" className="font-medium text-indigo-600 transition-all duration-300 ease-in-out hover:text-indigo-500">
-              Login here
+              {t('auth.loginHere')}
             </Link>
           </p>
         </motion.div>

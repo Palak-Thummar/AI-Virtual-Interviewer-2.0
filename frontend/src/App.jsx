@@ -6,7 +6,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { InterviewProvider } from './context/InterviewContext';
+import { useTranslation } from 'react-i18next';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -26,12 +26,13 @@ import './styles/globals.css';
 
 const ProtectedLayout = () => {
   const { isAuthenticated, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 text-slate-600 shadow-card">
-          Loading...
+          {t('common.loading')}
         </div>
       </div>
     );
@@ -75,9 +76,7 @@ export const App = () => {
   return (
     <Router>
       <AuthProvider>
-        <InterviewProvider>
-          <AppRoutes />
-        </InterviewProvider>
+        <AppRoutes />
       </AuthProvider>
     </Router>
   );

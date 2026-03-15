@@ -1,13 +1,12 @@
-"""
-Analytics API endpoints.
-Dashboard data, performance metrics, and insights.
-"""
+"""Analytics API endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+
+from app.api.dependencies import get_current_user
+from app.core.database import get_collection
 from app.schemas.api import AnalyticsData
 from app.services.analytics import get_domain_performance, get_improvement_suggestions
 from app.services.career_intelligence import get_user_intelligence
-from app.api.dependencies import get_current_user
 from bson import ObjectId
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -30,10 +29,7 @@ async def get_dashboard(current_user_id: str = Depends(get_current_user)):
         
         return AnalyticsData(
             average_score=analytics.get("average_score", 0),
-            best_score=max([
-                float(item.get("score", 0) or 0)
-                for item in analytics.get("trend", [])
-            ] or [0]),
+            best_score=max([float(item.get("score", 0) or 0) for item in analytics.get("trend", [])] or [0]),
             interview_count=analytics.get("completed_interviews", 0),
             domain_performance=analytics.get("domain_performance", {}),
             recent_interviews=analytics.get("recent_interviews", []),
@@ -106,9 +102,6 @@ async def get_interview_history(current_user_id: str = Depends(get_current_user)
         List of interviews
     """
     
-    from app.core.database import get_collection
-    from bson import ObjectId
-    
     interviews_collection = get_collection("interviews")
     
     interviews = list(interviews_collection.find(
@@ -122,9 +115,9 @@ async def get_interview_history(current_user_id: str = Depends(get_current_user)
         "interviews": [
             {
                 "id": str(i["_id"]),
-                "job_role": i.get("job_role", ""),
+                "job_role": i.get("role", i.get("job_role", "")),
                 "domain": i.get("domain", ""),
-                "score": i.get("overall_score", 0),
+                "score": i.get("score", i.get("total_score", i.get("overall_score", 0))),
                 "status": i.get("status", ""),
                 "date": i.get("created_at"),
                 "questions_count": len(i.get("questions", []))
@@ -146,12 +139,9 @@ async def get_full_analytics(current_user_id: str = Depends(get_current_user)):
     Returns:
         Complete analytics data object
     """
-    from app.core.database import get_collection
-    from bson import ObjectId
-    from datetime import datetime
-    
     interviews_collection = get_collection("interviews")
     user_id = ObjectId(current_user_id)
+    intelligence = get_user_intelligence(current_user_id)
     
     # Get all completed interviews
     completed_interviews = list(interviews_collection.find(
@@ -162,7 +152,7 @@ async def get_full_analytics(current_user_id: str = Depends(get_current_user)):
     if not completed_interviews:
         return {
             "stats": {
-                "total_interviews": 0,
+                "total_interviews": intelligence.get("total_interviews", 0),
                 "completed": 0,
                 "average_score": 0,
                 "best_score": 0
@@ -181,66 +171,50 @@ async def get_full_analytics(current_user_id: str = Depends(get_current_user)):
             "strengths": "Complete more interviews to identify your strengths",
             "improvements": "The system will analyze your weak points after more interviews"
         }
-    
-    # Calculate stats
-    scores = [i.get("overall_score", 0) for i in completed_interviews]
+
+    scores = [float(i.get("score", i.get("total_score", i.get("overall_score", 0))) or 0) for i in completed_interviews]
     total_interviews = len(completed_interviews)
     average_score = round(sum(scores) / len(scores), 2) if scores else 0
     best_score = round(max(scores), 2) if scores else 0
     worst_score = round(min(scores), 2) if scores else 0
-    
-    # Score trend over time (ordered chronologically)
+
     score_trend = [
         {
             "label": f"Interview {idx + 1}",
-            "score": i.get("overall_score", 0),
+            "score": float(i.get("score", i.get("total_score", i.get("overall_score", 0))) or 0),
             "date": i.get("created_at").isoformat() if i.get("created_at") else ""
         }
         for idx, i in enumerate(reversed(completed_interviews))
     ]
-    
-    # Domain performance
-    domain_stats = {}
-    for interview in completed_interviews:
-        domain = interview.get("domain", "Unknown")
-        score = interview.get("overall_score", 0)
-        
-        if domain not in domain_stats:
-            domain_stats[domain] = {"total": 0, "count": 0}
-        
-        domain_stats[domain]["total"] += score
-        domain_stats[domain]["count"] += 1
-    
+
     domain_performance = [
         {
             "name": domain,
-            "value": round(stats["total"] / stats["count"], 2)
+            "value": value
         }
-        for domain, stats in sorted(domain_stats.items())
+        for domain, value in sorted((intelligence.get("domain_performance") or {}).items())
     ]
-    
-    # Interview history (limit to 10)
+
     interview_history = [
         {
             "id": str(i["_id"]),
-            "job_role": i.get("job_role", ""),
+            "job_role": i.get("role", i.get("job_role", "")),
             "domain": i.get("domain", ""),
-            "score": i.get("overall_score", 0),
+            "score": float(i.get("score", i.get("total_score", i.get("overall_score", 0))) or 0),
             "date": i.get("created_at").isoformat() if i.get("created_at") else "",
-            "status": _get_status_badge(i.get("overall_score", 0))
+            "status": _get_status_badge(float(i.get("score", i.get("total_score", i.get("overall_score", 0))) or 0))
         }
         for i in completed_interviews[:10]
     ]
-    
-    # Performance summary
+
     last_interview_date = completed_interviews[0].get("created_at") if completed_interviews else None
     first_score = scores[-1] if scores else 0
     last_score = scores[0] if scores else 0
     improvement_percentage = round(((last_score - first_score) / first_score * 100), 2) if first_score > 0 else 0
-    
+
     return {
         "stats": {
-            "total_interviews": total_interviews,
+            "total_interviews": intelligence.get("total_interviews", total_interviews),
             "completed": total_interviews,
             "average_score": average_score,
             "best_score": best_score

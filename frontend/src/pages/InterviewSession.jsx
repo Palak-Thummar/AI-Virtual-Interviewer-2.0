@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Clock3, Loader2, Target, Trophy } from 'lucide-react';
-import { interviewAPI } from '../services/api';
+import { useTranslation } from 'react-i18next';
+import { interviewAPI, parseApiError } from '../services/api';
 import { useIntelligenceStore } from '../context/IntelligenceStore';
 import styles from './InterviewSession.module.css';
 
 const QUESTION_TIME_SECONDS = 60;
 
 export const InterviewSessionPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { interviewId } = useParams();
   const location = useLocation();
@@ -53,7 +55,7 @@ export const InterviewSessionPage = () => {
         setCurrentQuestionIndex(Number(data.current_question_index || 0));
         setTimer(QUESTION_TIME_SECONDS);
       } catch (err) {
-        setError(err?.response?.data?.detail || 'Failed to load interview session.');
+        setError(parseApiError(err, 'Failed to load interview session.'));
       } finally {
         setLoading(false);
       }
@@ -134,7 +136,7 @@ export const InterviewSessionPage = () => {
       setCurrentAnswer('');
       setTimer(QUESTION_TIME_SECONDS);
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to submit answer.');
+      setError(parseApiError(err, 'Failed to submit answer.'));
     } finally {
       setSubmitting(false);
     }
@@ -162,7 +164,7 @@ export const InterviewSessionPage = () => {
         await handleSubmitInterview();
       }
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to skip question.');
+      setError(parseApiError(err, 'Failed to skip question.'));
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +201,7 @@ export const InterviewSessionPage = () => {
       setCompleted(true);
       setFeedback(null);
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to submit interview.');
+      setError(parseApiError(err, 'Failed to submit interview.'));
     } finally {
       setSubmitting(false);
     }
@@ -220,12 +222,14 @@ export const InterviewSessionPage = () => {
     return 'Early stage progress. Practice consistently to improve confidence and quality.';
   }, [finalScore]);
 
+  const resumeBanner = isResuming ? t('session.resumeBanner', { question: currentQuestionIndex + 1 }) : '';
+
   if (loading) {
     return (
       <div className={styles.page}>
         <section className={styles.evaluatingCard}>
           <Loader2 className={styles.spinIcon} size={24} />
-          <h2>Loading interview...</h2>
+          <h2>{t('session.loading')}</h2>
         </section>
       </div>
     );
@@ -237,7 +241,7 @@ export const InterviewSessionPage = () => {
         <section className={styles.evaluatingCard}>
           <h2>{error}</h2>
           <button type="button" className={styles.primaryButton} onClick={() => navigate('/interviews')}>
-            Back to Interviews
+            {t('nav.interviews')}
           </button>
         </section>
       </div>
@@ -251,20 +255,20 @@ export const InterviewSessionPage = () => {
           <div className={styles.completedIconWrap}>
             <Trophy size={24} />
           </div>
-          <h2 className={styles.completedTitle}>Interview Completed</h2>
-          <p className={styles.completedSubtitle}>Session ID: {interviewId}</p>
+          <h2 className={styles.completedTitle}>{t('session.completed.title')}</h2>
+          <p className={styles.completedSubtitle}>{t('session.completed.sessionId', { id: interviewId })}</p>
 
           <div className={styles.scoreGrid}>
             <div className={styles.scoreItem}>
-              <span>Final Score</span>
+              <span>{t('session.completed.finalScore')}</span>
               <strong>{Math.round(finalScore)}%</strong>
             </div>
             <div className={styles.scoreItem}>
-              <span>Average Score</span>
+              <span>{t('session.completed.averageScore')}</span>
               <strong>{averageScore}%</strong>
             </div>
             <div className={styles.scoreItem}>
-              <span>Answered</span>
+              <span>{t('session.completed.answered')}</span>
               <strong>{completedAnswers}</strong>
             </div>
           </div>
@@ -276,10 +280,10 @@ export const InterviewSessionPage = () => {
 
           <div className={styles.completedActions}>
             <button type="button" className={styles.secondaryButton} onClick={() => navigate(`/results/${interviewId}`)}>
-              View Report
+              {t('common.viewReport')}
             </button>
             <button type="button" className={styles.primaryButton} onClick={() => navigate('/career-intelligence')}>
-              View Career Intelligence
+              {t('session.completed.viewCareer')}
             </button>
           </div>
         </section>
@@ -303,6 +307,7 @@ export const InterviewSessionPage = () => {
 
       {!feedback ? (
         <section className={styles.sessionWrap}>
+          {resumeBanner ? <p className={styles.questionCount}>{resumeBanner}</p> : null}
           <div className={styles.stickyTimerWrap}>
             <div className={timerClassName}>
               <Clock3 size={16} />
@@ -312,9 +317,9 @@ export const InterviewSessionPage = () => {
 
           <header className={styles.sessionHeader}>
             <p className={styles.questionCount}>
-              Question {currentQuestionIndex + 1} / {interview?.questions?.length || 0}
+              {t('session.questionCounter', { current: currentQuestionIndex + 1, total: interview?.questions?.length || 0 })}
             </p>
-            <span className={styles.categoryBadge}>{interview?.type === 'company' ? 'Company' : 'General'}</span>
+            <span className={styles.categoryBadge}>{interview?.type === 'company' ? t('session.company') : t('session.general')}</span>
           </header>
 
           <article className={styles.questionCard}>
@@ -326,15 +331,15 @@ export const InterviewSessionPage = () => {
               className={styles.answerInput}
               value={currentAnswer}
               onChange={(event) => setCurrentAnswer(event.target.value)}
-              placeholder="Type your answer here..."
+              placeholder={t('session.answerPlaceholder')}
               rows={7}
             />
             <div className={styles.answerMeta}>
-              <span>{currentAnswer.length} characters</span>
+              <span>{t('session.characters', { count: currentAnswer.length })}</span>
               <div style={{ display: 'flex', gap: 8 }}>
                 {hasMultipleQuestions ? (
                   <button type="button" className={styles.secondaryButton} onClick={handleSkipQuestion} disabled={submitting}>
-                    Skip Question
+                    {t('session.skipQuestion')}
                   </button>
                 ) : null}
                 <button
@@ -343,7 +348,7 @@ export const InterviewSessionPage = () => {
                   onClick={handleSubmitAnswer}
                   disabled={!currentAnswer.trim() || submitting}
                 >
-                  {submitting ? 'Submitting...' : 'Submit Answer'}
+                  {submitting ? t('session.submitting') : t('session.submitAnswer')}
                 </button>
               </div>
             </div>
@@ -352,38 +357,38 @@ export const InterviewSessionPage = () => {
       ) : (
         <section className={styles.feedbackWrap}>
           <article className={styles.panel}>
-            <h3 className={styles.panelTitle}>Your Answer</h3>
+            <h3 className={styles.panelTitle}>{t('session.feedback.yourAnswer')}</h3>
             <p className={styles.panelText}>{feedback.answer}</p>
           </article>
 
           <article className={styles.panel}>
-            <h3 className={styles.panelTitle}>AI Feedback</h3>
-            <div className={`${styles.scoreBadge} ${scoreClassName}`}>Score: {Number(feedback.score || 0)}/100</div>
+            <h3 className={styles.panelTitle}>{t('session.feedback.aiFeedback')}</h3>
+            <div className={`${styles.scoreBadge} ${scoreClassName}`}>{t('session.feedback.score', { score: Number(feedback.score || 0) })}</div>
 
             {feedback.feedback ? (
               <div className={styles.feedbackBlock}>
-                <h4>Overall Feedback</h4>
+                <h4>{t('session.feedback.overall')}</h4>
                 <p>{feedback.feedback}</p>
               </div>
             ) : null}
 
             {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 ? (
               <div className={styles.feedbackBlock}>
-                <h4>Strengths</h4>
+                <h4>{t('session.feedback.strengths')}</h4>
                 <p>{feedback.strengths.join(', ')}</p>
               </div>
             ) : null}
 
             {Array.isArray(feedback.improvements) && feedback.improvements.length > 0 ? (
               <div className={styles.feedbackBlock}>
-                <h4>Improvements</h4>
+                <h4>{t('session.feedback.improvements')}</h4>
                 <p>{feedback.improvements.join(', ')}</p>
               </div>
             ) : null}
 
             <div className={styles.feedbackActions}>
               <button type="button" className={styles.primaryButton} onClick={handleNext} disabled={submitting}>
-                {currentQuestionIndex === (interview?.questions?.length || 1) - 1 ? 'Submit Interview' : 'Next Question'}
+                {currentQuestionIndex === (interview?.questions?.length || 1) - 1 ? t('session.submitInterview') : t('session.nextQuestion')}
               </button>
             </div>
           </article>

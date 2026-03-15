@@ -22,7 +22,8 @@ async def generate_interview_questions(
     domain: str,
     resume_text: str,
     job_description: str,
-    num_questions: int = 5
+    num_questions: int = 5,
+    programming_language: str | None = None,
 ) -> List[str]:
     """
     Generate personalized interview questions.
@@ -43,13 +44,16 @@ async def generate_interview_questions(
         List of interview questions
     """
     
+    programming_context = programming_language.strip() if programming_language else ""
+    language_line = f"PROGRAMMING LANGUAGE: {programming_context}\n" if programming_context else ""
+
     prompt = f"""You are a senior technical interviewer with 20+ years of experience.
 
 Generate {num_questions} personalized technical interview questions based on:
 
 JOB ROLE: {job_role}
 DOMAIN: {domain}
-CANDIDATE RESUME:
+{language_line}CANDIDATE RESUME:
 {resume_text[:1500]}
 
 JOB DESCRIPTION:
@@ -59,6 +63,7 @@ Requirements:
 - Questions should be personalized to the candidate's experience level
 - Mix behavioral, technical, and situational questions
 - Questions should align with the specific job requirements
+- If a programming language is provided, anchor technical questions in that language
 - Make them challenging but fair
 - Return a JSON array of questions only
 
@@ -75,11 +80,10 @@ Generate exactly {num_questions} questions. Return only the JSON array, no markd
             questions = [q.strip() for q in questions if isinstance(q, str)]
             return questions[:num_questions]
         
-        return _generate_fallback_questions(job_role, domain, num_questions)
+        return _generate_fallback_questions(job_role, domain, num_questions, programming_context)
         
     except Exception as e:
-        print(f"Error generating questions: {e}")
-        return _generate_fallback_questions(job_role, domain, num_questions)
+        return _generate_fallback_questions(job_role, domain, num_questions, programming_context)
 
 
 async def generate_follow_up_question(
@@ -149,22 +153,24 @@ def _parse_json_response(response: str) -> list:
         raise ValueError(f"Invalid JSON response: {response[:100]}")
 
 
-def _generate_fallback_questions(role: str, domain: str, count: int) -> List[str]:
+def _generate_fallback_questions(role: str, domain: str, count: int, programming_language: str | None = None) -> List[str]:
     """
     Generate fallback questions if AI generation fails.
     Provides sensible default questions.
     """
     
+    language_phrase = f" using {programming_language}" if programming_language else ""
+
     all_questions = [
         f"Walk us through your most challenging {domain} project and how you solved it.",
-        f"What experience do you have with the tech stack mentioned in the job description?",
-        f"Describe your approach to designing a scalable {domain} solution.",
+        f"What experience do you have with the tech stack and core tools required for a {role}{language_phrase} role?",
+        f"Describe your approach to designing a scalable {domain} solution{language_phrase}.",
         f"Tell us about a time you had to learn a new technology quickly in {domain}.",
         f"How do you stay updated with the latest trends and best practices in {domain}?",
-        f"What testing and debugging strategies do you use in your {domain} work?",
+        f"What testing and debugging strategies do you use in your {domain} work{language_phrase}?",
         f"Describe your experience working in a team environment for {domain} projects.",
         f"What would you do if you faced a critical production issue in {domain}?",
-        f"How do you approach code review and receiving feedback on your {domain} code?",
+        f"How do you approach code review and receiving feedback on your {domain} code{language_phrase}?",
         f"What are your long-term career goals in {domain}?",
     ]
     

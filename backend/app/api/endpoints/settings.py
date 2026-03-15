@@ -347,8 +347,10 @@ async def upload_settings_resume(
     }
 
     resumes_collection.update_one({"user_id": user_id, "is_settings_resume": True}, {"$set": doc}, upsert=True)
+    saved = resumes_collection.find_one({"user_id": user_id, "is_settings_resume": True})
 
     return {
+        "resume_id": str(saved.get("_id")) if saved else None,
         "file_name": doc["file_name"],
         "extracted_skills": doc["extracted_skills"],
         "uploaded_at": doc["uploaded_at"],
@@ -361,9 +363,10 @@ async def get_settings_resume(current_user_id: str = Depends(get_current_user)):
     resume = resumes_collection.find_one({"user_id": _user_object_id(current_user_id), "is_settings_resume": True})
 
     if not resume:
-        return {"file_name": None, "extracted_skills": [], "uploaded_at": None}
+        return {"resume_id": None, "file_name": None, "extracted_skills": [], "uploaded_at": None}
 
     return {
+        "resume_id": str(resume.get("_id")),
         "file_name": resume.get("file_name"),
         "extracted_skills": resume.get("extracted_skills", []),
         "uploaded_at": resume.get("uploaded_at"),

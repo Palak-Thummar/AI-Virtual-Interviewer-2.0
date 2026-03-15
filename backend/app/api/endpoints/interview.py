@@ -25,6 +25,8 @@ from app.core.database import get_collection
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
 
+SUPPORTED_PROGRAMMING_LANGUAGES = {"Python", "Java", "C++", "JavaScript", "Go"}
+
 
 def _default_jd_analysis(error_message: str = "") -> dict:
     return {
@@ -104,6 +106,59 @@ def _get_preferred_question_count(current_user_id: str, fallback: int = 5) -> in
     return min(20, max(1, preferred))
 
 
+def _normalize_programming_language(programming_language: str | None) -> str | None:
+    if not programming_language:
+        return None
+
+    normalized = programming_language.strip()
+    if not normalized:
+        return None
+
+    aliases = {
+        "python": "Python",
+        "java": "Java",
+        "c++": "C++",
+        "cpp": "C++",
+        "javascript": "JavaScript",
+        "js": "JavaScript",
+        "go": "Go",
+        "golang": "Go",
+    }
+    resolved = aliases.get(normalized.lower(), normalized)
+    if resolved not in SUPPORTED_PROGRAMMING_LANGUAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported programming language. Supported values: {', '.join(sorted(SUPPORTED_PROGRAMMING_LANGUAGES))}"
+        )
+    return resolved
+
+
+def _serialize_interview(interview: dict) -> dict:
+    return {
+        "id": str(interview.get("_id")),
+        "user_id": str(interview.get("user_id")) if interview.get("user_id") else None,
+        "role": interview.get("role") or interview.get("job_role") or "",
+        "type": interview.get("type", "general"),
+        "status": interview.get("status", "pending"),
+        "questions": interview.get("questions", []),
+        "answers": interview.get("answers", []),
+        "current_question_index": int(interview.get("current_question_index", 0) or 0),
+        "created_at": interview.get("created_at"),
+        "completed_at": interview.get("completed_at"),
+        "score": float(interview.get("score", interview.get("total_score", interview.get("overall_score", 0))) or 0),
+        "total_score": float(interview.get("score", interview.get("total_score", interview.get("overall_score", 0))) or 0),
+        "skill_scores": interview.get("skill_scores", {}),
+        "domain": interview.get("domain", ""),
+        "programming_language": interview.get("programming_language"),
+        "company": interview.get("company"),
+        "updated_at": interview.get("updated_at"),
+        "resume_id": str(interview.get("resume_id")) if interview.get("resume_id") else None,
+        "job_description": interview.get("job_description", ""),
+        "skill_match": interview.get("skill_match"),
+        "resume_suggestions": interview.get("resume_suggestions"),
+    }
+
+
 class CompanyInterviewGenerateRequest(BaseModel):
     company: str = Field(..., min_length=1, max_length=80)
     role: str = Field(..., min_length=1, max_length=100)
@@ -139,6 +194,7 @@ async def create_interview(
     setup: InterviewSetup,
     current_user_id: str = Depends(get_current_user)
 ):
+    programming_language = _normalize_programming_language(getattr(setup, "programming_language", None))
     
     # Verify resume exists
     resumes_collection = get_collection("resumes")
@@ -166,7 +222,8 @@ async def create_interview(
             domain=setup.domain,
             resume_text=resume_text,
             job_description=setup.job_description,
-            num_questions=num_questions
+            num_questions=num_questions,
+            programming_language=programming_language,
         )
     except Exception as e:
         raise HTTPException(
@@ -182,11 +239,13 @@ async def create_interview(
         "role": setup.job_role,
         "type": "general",
         "domain": setup.domain,
+        "programming_language": programming_language,
         "job_description": setup.job_description,
         "resume_id": ObjectId(setup.resume_id),
         "questions": questions,
         "answers": [],
         "current_question_index": 0,
+        "score": None,
         "total_score": None,
         "skill_scores": {},
         "status": "pending",
@@ -203,7 +262,8 @@ async def create_interview(
         job_role=setup.job_role,
         domain=setup.domain,
         num_questions=num_questions,
-        questions=questions
+        questions=questions,
+        programming_language=programming_language,
     )
 
 
@@ -266,10 +326,12 @@ async def generate_company_interview(
         "domain": inferred_domain,
         "company": normalized_company,
         "difficulty": normalized_difficulty,
+        "programming_language": None,
         "questions": [q["question"] for q in question_objects],
         "questions_structured": question_objects,
         "answers": [],
         "current_question_index": 0,
+        "score": None,
         "total_score": None,
         "skill_scores": {},
         "status": "pending",
@@ -446,7 +508,7 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
         ]
         return InterviewResults(
             interview_id=interview_id,
-            overall_score=float(interview.get("total_score") or 0),
+            overall_score=float(interview.get("score", interview.get("total_score", 0)) or 0),
             domain=interview.get("domain", ""),
             job_role=interview.get("role", ""),
             question_scores=question_scores,
@@ -544,6 +606,7 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
         {
             "$set": {
                 "status": "completed",
+                "score": round(float(overall_score or 0), 2),
                 "total_score": round(float(overall_score or 0), 2),
                 "skill_scores": skill_breakdown,
                 "skill_match": skill_match_data,
@@ -640,21 +703,7 @@ async def get_interview(
             detail="Interview not found"
         )
     
-    return {
-        "id": str(interview["_id"]),
-        "role": interview.get("role", ""),
-        "type": interview.get("type", "general"),
-        "domain": interview.get("domain", ""),
-        "status": interview.get("status", ""),
-        "total_score": interview.get("total_score"),
-        "skill_scores": interview.get("skill_scores", {}),
-        "questions": interview.get("questions", []),
-        "answers": interview.get("answers", []),
-        "current_question_index": int(interview.get("current_question_index", 0) or 0),
-        "created_at": interview.get("created_at"),
-        "completed_at": interview.get("completed_at"),
-        "updated_at": interview.get("updated_at")
-    }
+    return _serialize_interview(interview)
 
 
 @router.delete("/{interview_id}")
@@ -715,20 +764,6 @@ async def resume_interview(
             detail="In-progress interview not found"
         )
     
-    answers = interview.get("answers", [])
-    current_question_index = int(interview.get("current_question_index", 0) or 0)
-    
-    return {
-        "id": str(interview["_id"]),
-        "job_role": interview.get("job_role", ""),
-        "domain": interview.get("domain", ""),
-        "status": interview.get("status", "pending"),
-        "type": interview.get("type", "general"),
-        "role": interview.get("role", ""),
-        "questions": interview.get("questions", []),
-        "answers": answers,
-        "current_question_index": current_question_index,
-        "total_questions": len(interview.get("questions", [])),
-        "created_at": interview.get("created_at"),
-        "updated_at": interview.get("updated_at")
-    }
+    serialized = _serialize_interview(interview)
+    serialized["total_questions"] = len(interview.get("questions", []))
+    return serialized

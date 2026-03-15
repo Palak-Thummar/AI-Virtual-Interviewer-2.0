@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import styles from './SettingsSections.module.css';
 
 export const NotificationSettings = () => {
+  const { t } = useTranslation();
   const notifications = useSettingsStore((state) => state.notifications);
   const updateNotifications = useSettingsStore((state) => state.updateNotifications);
 
@@ -27,7 +29,7 @@ export const NotificationSettings = () => {
       setMessage('');
       setError('');
       await updateNotifications(form);
-      setMessage('Notification preferences updated.');
+      setMessage(t('settings.notifications.saved'));
     } catch (err) {
       setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to update notifications');
     } finally {
@@ -37,8 +39,8 @@ export const NotificationSettings = () => {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>Notifications</h2>
-      <p className={styles.subtitle}>Control reminder and communication settings.</p>
+      <h2 className={styles.title}>{t('settings.notifications.title')}</h2>
+      <p className={styles.subtitle}>{t('settings.notifications.subtitle')}</p>
 
       <label className={styles.checkRow}>
         <input
@@ -46,7 +48,7 @@ export const NotificationSettings = () => {
           checked={form.email_notifications}
           onChange={(event) => setForm((prev) => ({ ...prev, email_notifications: event.target.checked }))}
         />
-        <span>Email Notifications</span>
+        <span>{t('settings.notifications.email')}</span>
       </label>
 
       <label className={styles.checkRow}>
@@ -55,7 +57,7 @@ export const NotificationSettings = () => {
           checked={form.interview_reminders}
           onChange={(event) => setForm((prev) => ({ ...prev, interview_reminders: event.target.checked }))}
         />
-        <span>Interview Reminders</span>
+        <span>{t('settings.notifications.reminders')}</span>
       </label>
 
       <label className={styles.checkRow}>
@@ -64,7 +66,7 @@ export const NotificationSettings = () => {
           checked={form.weekly_summary}
           onChange={(event) => setForm((prev) => ({ ...prev, weekly_summary: event.target.checked }))}
         />
-        <span>Weekly Summary</span>
+        <span>{t('settings.notifications.weekly')}</span>
       </label>
 
       <label className={styles.checkRow}>
@@ -73,7 +75,7 @@ export const NotificationSettings = () => {
           checked={form.skill_suggestions}
           onChange={(event) => setForm((prev) => ({ ...prev, skill_suggestions: event.target.checked }))}
         />
-        <span>Skill Suggestions</span>
+        <span>{t('settings.notifications.skills')}</span>
       </label>
 
       {message ? <div className={styles.messageSuccess}>{message}</div> : null}
@@ -81,7 +83,7 @@ export const NotificationSettings = () => {
 
       <div className={styles.actions}>
         <button type="button" className={styles.primaryButton} onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Notifications'}
+          {saving ? t('settings.notifications.saving') : t('settings.notifications.save')}
         </button>
       </div>
     </section>

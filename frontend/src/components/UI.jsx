@@ -54,6 +54,7 @@ export const Select = ({
   options,
   error,
   className = '',
+  placeholder,
   ...props
 }) => (
   <div className={styles.formGroup}>
@@ -62,7 +63,7 @@ export const Select = ({
       className={`${styles.input} ${error ? styles.inputError : ''} ${className}`}
       {...props}
     >
-      <option value="">Select {label || 'option'}...</option>
+      <option value="">{placeholder || `Select ${label || 'option'}...`}</option>
       {options?.map((opt) => (
         <option key={opt.value} value={opt.value}>
           {opt.label}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
   Brain,
@@ -15,17 +16,19 @@ import {
 import styles from './Layout.module.css';
 
 const navItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Interviews', to: '/interviews', icon: Users },
-  { label: 'Company Prep', to: '/company-prep', icon: Building2 },
-  { label: 'Career Intelligence', to: '/career-intelligence', icon: BarChart3 },
-  { label: 'Coding Practice', to: '/coding-practice', icon: Code2 },
-  { label: 'Answer Lab', to: '/answer-lab', icon: MessageSquareText },
-  { label: 'Resume Rewriter', to: '/resume-rewriter', icon: FilePenLine },
-  { label: 'Settings', to: '/settings', icon: Settings }
+  { label: 'nav.dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { label: 'nav.interviews', to: '/interviews', icon: Users },
+  { label: 'nav.companyPrep', to: '/company-prep', icon: Building2 },
+  { label: 'nav.careerIntelligence', to: '/career-intelligence', icon: BarChart3 },
+  { label: 'nav.codingPractice', to: '/coding-practice', icon: Code2 },
+  { label: 'nav.answerLab', to: '/answer-lab', icon: MessageSquareText },
+  { label: 'nav.resumeRewriter', to: '/resume-rewriter', icon: FilePenLine },
+  { label: 'nav.settings', to: '/settings', icon: Settings }
 ];
 
 export const Sidebar = ({ isOpen, onNavigate }) => {
+  const { t } = useTranslation();
+
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`}>
       <div className={styles.brand}>
@@ -51,7 +54,7 @@ export const Sidebar = ({ isOpen, onNavigate }) => {
               }
             >
               <Icon size={17} />
-              <span>{item.label}</span>
+              <span>{t(item.label)}</span>
             </NavLink>
           );
         })}

@@ -16,6 +16,32 @@ const SERVER_BASE = (
 ).replace(/\/$/, '');
 const API_BASE = `${SERVER_BASE}/api`;
 
+export const parseApiError = (error, fallback = 'Something went wrong.') => {
+  if (!error?.response) {
+    return 'Network error. Please check your connection and try again.';
+  }
+
+  const detail = error.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
+  }
+  if (detail?.message) {
+    return detail.message;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0];
+    if (typeof first === 'string') return first;
+    if (first?.msg) return first.msg;
+  }
+  if (error.response?.data?.message) {
+    return error.response.data.message;
+  }
+  if (error.response?.status === 401) {
+    return 'Your session has expired. Please sign in again.';
+  }
+  return fallback;
+};
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE,
@@ -45,6 +71,7 @@ api.interceptors.response.use(
     // Only redirect to login on 401 (unauthorized)
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      sessionStorage.setItem('authRedirectReason', 'Your session has expired. Please sign in again.');
       const currentPath = window.location.pathname;
       
       // Don't redirect if already on login/register page
@@ -68,6 +95,12 @@ export const authAPI = {
   
   getProfile: () =>
     api.get('/auth/me'),
+
+  verifyToken: (token) =>
+    api.get('/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+      skipInterceptor: true
+    }),
   
   refresh: () =>
     api.post('/auth/refresh')
@@ -88,6 +121,9 @@ export const resumeAPI = {
   
   get: (resumeId) =>
     api.get(`/resume/${resumeId}`),
+
+  analyze: (resumeId, payload) =>
+    api.post(`/resume/analyze/${resumeId}`, payload),
 
   rewrite: (payload) =>
     api.post('/resume/rewrite', payload),
@@ -208,5 +244,7 @@ export const settingsAPI = {
   deleteAccount: () =>
     api.delete('/settings/account')
 };
+
+export { API_BASE, SERVER_BASE, api };
 
 export default api;

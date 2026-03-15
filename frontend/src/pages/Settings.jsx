@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useSettingsStore } from '../store/settingsStore';
 import { ProfileSettings } from '../components/settings/ProfileSettings';
@@ -11,19 +12,28 @@ import { PrivacySettings } from '../components/settings/PrivacySettings';
 import styles from './Settings.module.css';
 
 const sections = [
-  { key: 'profile', label: 'Profile' },
-  { key: 'security', label: 'Security' },
-  { key: 'preferences', label: 'Preferences' },
-  { key: 'resume', label: 'Resume' },
-  { key: 'notifications', label: 'Notifications' },
-  { key: 'privacy', label: 'Data & Privacy' }
+  { key: 'profile', label: 'settings.sections.profile' },
+  { key: 'security', label: 'settings.sections.security' },
+  { key: 'preferences', label: 'settings.sections.preferences' },
+  { key: 'resume', label: 'settings.sections.resume' },
+  { key: 'notifications', label: 'settings.sections.notifications' },
+  { key: 'privacy', label: 'settings.sections.privacy' }
 ];
 
 export const SettingsPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { logout } = useAuth();
-  const [activeSection, setActiveSection] = useState('profile');
+  const [activeSection, setActiveSection] = useState(searchParams.get('section') || 'profile');
   const { loadSettings, loading, error } = useSettingsStore();
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section && sections.some((item) => item.key === section)) {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadSettings();
@@ -46,8 +56,8 @@ export const SettingsPage = () => {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <h1>Settings</h1>
-        <p>Manage your profile, security, interview preferences, and privacy controls</p>
+        <h1>{t('settings.title')}</h1>
+        <p>{t('settings.subtitle')}</p>
       </header>
 
       <div className={styles.layout}>
@@ -59,13 +69,13 @@ export const SettingsPage = () => {
               onClick={() => setActiveSection(item.key)}
               className={`${styles.menuItem} ${activeSection === item.key ? styles.menuItemActive : ''}`}
             >
-              {item.label}
+                {t(item.label)}
             </button>
           ))}
         </aside>
 
         <main className={styles.panel}>
-          {loading ? <div className={styles.stateBox}>Loading settings...</div> : null}
+            {loading ? <div className={styles.stateBox}>{t('settings.loading')}</div> : null}
           {!loading && error ? <div className={styles.stateError}>{error}</div> : null}
           {!loading && !error ? renderSection() : null}
         </main>

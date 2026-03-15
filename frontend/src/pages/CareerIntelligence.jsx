@@ -12,6 +12,7 @@ import {
   Line
 } from 'recharts';
 import { Brain, Lightbulb, TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { analyticsAPI } from '../services/api';
 import { useIntelligenceStore } from '../context/IntelligenceStore';
 import styles from './CareerIntelligence.module.css';
@@ -42,6 +43,7 @@ const LoadingSkeleton = () => (
 );
 
 export const CareerIntelligencePage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const storeIntelligence = useIntelligenceStore((state) => state.intelligence);
@@ -109,24 +111,24 @@ export const CareerIntelligencePage = () => {
 
   const kpis = [
     {
-      label: 'Total Interviews',
+      label: t('career.kpis.total'),
       value: summary?.total_interviews ?? 0,
-      note: 'All sessions'
+      note: t('career.kpis.allSessions')
     },
     {
-      label: 'Completed Interviews',
+      label: t('career.kpis.completed'),
       value: summary?.completed_interviews ?? 0,
-      note: `${summary?.pending_interviews ?? 0} pending`
+      note: t('career.kpis.pending', { count: summary?.pending_interviews ?? 0 })
     },
     {
-      label: 'Average Score',
+      label: t('career.kpis.average'),
       value: `${summary?.average_score ?? 0}%`,
-      note: 'Completed sessions only'
+      note: t('career.kpis.completedOnly')
     },
     {
-      label: 'Role Readiness',
+      label: t('career.kpis.readiness'),
       value: `${readinessPct}%`,
-      note: 'Interview confidence index'
+      note: t('career.kpis.confidenceIndex')
     }
   ];
 
@@ -138,13 +140,13 @@ export const CareerIntelligencePage = () => {
     return (
       <section className={styles.page}>
         <header className={styles.header}>
-          <h1>Career Intelligence</h1>
-          <p>Your interview performance insights</p>
+          <h1>{t('career.title')}</h1>
+          <p>{t('career.subtitle')}</p>
         </header>
         <div className={styles.errorCard}>
           <p>{error}</p>
           <button type="button" className={styles.primaryButton} onClick={fetchSummary}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </section>
@@ -155,16 +157,17 @@ export const CareerIntelligencePage = () => {
     return (
       <section className={styles.page}>
         <header className={styles.header}>
-          <h1>Career Intelligence</h1>
-          <p>Your interview performance insights</p>
+          <h1>{t('career.title')}</h1>
+          <p>{t('career.subtitle')}</p>
         </header>
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}>
             <Brain size={28} />
           </div>
-          <p>Complete an interview to unlock career insights.</p>
+          <p>{t('career.emptyTitle')}</p>
+          <p>{t('career.emptySubtitle')}</p>
           <button type="button" className={styles.primaryButton} onClick={() => navigate('/setup')}>
-            Start Interview
+            {t('career.startInterview')}
           </button>
         </div>
       </section>
@@ -174,8 +177,8 @@ export const CareerIntelligencePage = () => {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <h1>Career Intelligence</h1>
-        <p>Your interview performance insights</p>
+        <h1>{t('career.title')}</h1>
+        <p>{t('career.subtitle')}</p>
       </header>
 
       <section className={styles.kpiGrid}>
@@ -190,7 +193,7 @@ export const CareerIntelligencePage = () => {
 
       <section className={styles.twoColumn}>
         <article className={styles.card}>
-          <h2>Role Readiness</h2>
+          <h2>{t('career.roleReadiness')}</h2>
           <div className={styles.readinessWrap}>
             <div className={styles.readinessRing}>
               <svg viewBox="0 0 120 120" className={styles.readinessSvg}>
@@ -210,14 +213,14 @@ export const CareerIntelligencePage = () => {
         </article>
 
         <article className={styles.card}>
-          <h2>Strength vs Weakness</h2>
+          <h2>{t('career.strengthVsWeakness')}</h2>
           <div className={styles.strengthGrid}>
             <div className={`${styles.skillCard} ${styles.skillStrong}`}>
-              <span>Strongest Skill</span>
+              <span>{t('career.strongestSkill')}</span>
               <strong>{summary?.strongest_skill || '-'}</strong>
             </div>
             <div className={`${styles.skillCard} ${styles.skillWeak}`}>
-              <span>Weakest Skill</span>
+              <span>{t('career.weakestSkill')}</span>
               <strong>{summary?.weakest_skill || '-'}</strong>
             </div>
           </div>
@@ -226,7 +229,7 @@ export const CareerIntelligencePage = () => {
 
       <section className={styles.twoColumn}>
         <article className={styles.card}>
-          <h2>Skill Breakdown</h2>
+          <h2>{t('career.skillBreakdown')}</h2>
           <div className={styles.chartBox}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={skillData}>
@@ -241,7 +244,7 @@ export const CareerIntelligencePage = () => {
         </article>
 
         <article className={styles.card}>
-          <h2>Performance Trend</h2>
+          <h2>{t('career.performanceTrend')}</h2>
           <div className={styles.chartBox}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
@@ -257,7 +260,7 @@ export const CareerIntelligencePage = () => {
       </section>
 
       <article className={styles.card}>
-        <h2>Role Comparison</h2>
+        <h2>{t('career.roleComparison')}</h2>
         <div className={styles.chartBox}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={roleComparisonData}>
@@ -272,7 +275,7 @@ export const CareerIntelligencePage = () => {
       </article>
 
       <article className={styles.card}>
-        <h2>AI Recommendations</h2>
+        <h2>{t('career.recommendations')}</h2>
         <ul className={styles.recommendationList}>
           {(summary?.recommendations || []).map((item, index) => (
             <li key={`${item}-${index}`}>

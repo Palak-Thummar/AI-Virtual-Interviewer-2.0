@@ -1,12 +1,5 @@
 import { create } from 'zustand';
-import { settingsAPI } from '../services/api';
-
-const parseError = (err, fallback) => {
-  const detail = err?.response?.data?.detail;
-  if (typeof detail === 'string') return detail;
-  if (detail?.message) return detail.message;
-  return fallback;
-};
+import { parseApiError, settingsAPI } from '../services/api';
 
 export const useSettingsStore = create((set) => ({
   profile: null,
@@ -37,7 +30,7 @@ export const useSettingsStore = create((set) => ({
         error: ''
       });
     } catch (err) {
-      set({ loading: false, error: parseError(err, 'Failed to load settings') });
+      set({ loading: false, error: parseApiError(err, 'Failed to load settings.') });
     }
   },
 

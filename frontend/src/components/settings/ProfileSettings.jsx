@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import styles from './SettingsSections.module.css';
 
 export const ProfileSettings = () => {
+  const { t } = useTranslation();
   const profile = useSettingsStore((state) => state.profile);
   const updateProfile = useSettingsStore((state) => state.updateProfile);
 
@@ -27,7 +29,7 @@ export const ProfileSettings = () => {
       setError('');
       setMessage('');
       await updateProfile(form);
-      setMessage('Profile updated successfully.');
+      setMessage(t('settings.profile.saved'));
     } catch (err) {
       setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to update profile');
     } finally {
@@ -37,12 +39,12 @@ export const ProfileSettings = () => {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>Profile Management</h2>
-      <p className={styles.subtitle}>Update your personal and professional details.</p>
+      <h2 className={styles.title}>{t('settings.profile.title')}</h2>
+      <p className={styles.subtitle}>{t('settings.profile.subtitle')}</p>
 
       <div className={styles.grid}>
         <div className={styles.field}>
-          <label>Full Name</label>
+          <label>{t('settings.profile.fullName')}</label>
           <input
             className={styles.input}
             value={form.full_name}
@@ -50,25 +52,25 @@ export const ProfileSettings = () => {
           />
         </div>
         <div className={styles.field}>
-          <label>Email</label>
+          <label>{t('settings.profile.email')}</label>
           <input className={styles.input} value={form.email} disabled />
         </div>
         <div className={styles.field}>
-          <label>Primary Role</label>
+          <label>{t('settings.profile.primaryRole')}</label>
           <input
             className={styles.input}
             value={form.primary_role}
             onChange={(event) => setForm((prev) => ({ ...prev, primary_role: event.target.value }))}
-            placeholder="e.g. Java Developer"
+            placeholder={t('settings.profile.primaryRole')}
           />
         </div>
         <div className={styles.field}>
-          <label>Experience Level</label>
+          <label>{t('settings.profile.experienceLevel')}</label>
           <input
             className={styles.input}
             value={form.experience_level}
             onChange={(event) => setForm((prev) => ({ ...prev, experience_level: event.target.value }))}
-            placeholder="e.g. Fresher"
+            placeholder={t('settings.profile.experienceLevel')}
           />
         </div>
       </div>
@@ -78,7 +80,7 @@ export const ProfileSettings = () => {
 
       <div className={styles.actions}>
         <button type="button" className={styles.primaryButton} onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Profile'}
+          {saving ? t('settings.profile.saving') : t('settings.profile.save')}
         </button>
       </div>
     </section>

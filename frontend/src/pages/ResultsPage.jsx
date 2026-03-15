@@ -5,15 +5,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { interviewAPI } from '../services/api';
+import { useTranslation } from 'react-i18next';
+import { interviewAPI, parseApiError } from '../services/api';
 import { Card, Badge, Spinner, ProgressBar, Button, Alert } from '../components/UI';
 import { useNavigate } from 'react-router-dom';
 import styles from './Results.module.css';
 
 export const ResultsPage = () => {
+  const { t } = useTranslation();
   const { interviewId } = useParams();
-  const { token } = useAuth();
   const navigate = useNavigate();
 
   const [results, setResults] = useState(null);
@@ -23,27 +23,25 @@ export const ResultsPage = () => {
   useEffect(() => {
     const loadResults = async () => {
       try {
-        console.log('Fetching results for interview:', interviewId);
-        
         // Try to complete/get results first
         let data;
         try {
           const response = await interviewAPI.complete(interviewId);
           data = response.data || response;
-          console.log('Results received from complete:', data);
         } catch (completeErr) {
           // If complete fails, try fetching the interview directly
-          console.log('Complete failed, trying get approach...');
           const getResponse = await interviewAPI.get(interviewId);
           data = getResponse.data || getResponse;
-          console.log('Interview data received from get:', data);
           
           // If the interview is already completed, use its data
-          if (data && (data.status === 'completed' || data.overall_score > 0)) {
+          const computedScore = Number(data?.overall_score ?? data?.score ?? data?.total_score ?? 0);
+          if (data && (data.status === 'completed' || computedScore > 0)) {
             // Format the interview data into results format
             data = {
               ...data,
               interview_id: data.id,
+              overall_score: computedScore,
+              job_role: data.job_role || data.role || '',
               question_scores: data.answers?.map((ans, idx) => ({
                 question_id: ans.question_id,
                 score: ans.score || 0,
@@ -70,14 +68,7 @@ export const ResultsPage = () => {
         
         setResults(data);
       } catch (err) {
-        console.error('Load results error:', {
-          status: err.response?.status,
-          statusText: err.response?.statusText,
-          data: err.response?.data,
-          message: err.message,
-          config: err.config
-        });
-        const errorMsg = err.response?.data?.detail || 'Failed to load results. Redirecting to dashboard...';
+        const errorMsg = parseApiError(err, 'Failed to load results. Redirecting to dashboard...');
         setError(errorMsg);
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
@@ -94,7 +85,7 @@ export const ResultsPage = () => {
     return (
       <div className={styles.center}>
         <Spinner size="lg" />
-        <span>Generating your results...</span>
+        <span>{t('results.generating')}</span>
       </div>
     );
   }
@@ -107,7 +98,7 @@ export const ResultsPage = () => {
         </Alert>
         <div className={styles.actions}>
           <Button variant="primary" onClick={() => navigate('/dashboard')}>
-            Go to Dashboard Now
+            {t('results.goDashboardNow')}
           </Button>
         </div>
       </div>
@@ -117,20 +108,20 @@ export const ResultsPage = () => {
   if (!results) {
     return (
       <div className={styles.center}>
-        <Alert variant="error">Results not found</Alert>
+        <Alert variant="error">{t('results.notFound')}</Alert>
         <div className={styles.actions}>
           <Button variant="primary" onClick={() => navigate('/dashboard')}>
-            Go to Dashboard
+            {t('results.goDashboard')}
           </Button>
         </div>
       </div>
     );
   }
 
-  const scorePercentage = (results.overall_score / 100) * 100;
+  const overallScore = Number(results?.overall_score ?? results?.score ?? results?.total_score ?? 0);
   let scoreColor = 'error';
-  if (results.overall_score >= 80) scoreColor = 'success';
-  else if (results.overall_score >= 65) scoreColor = 'warning';
+  if (overallScore >= 80) scoreColor = 'success';
+  else if (overallScore >= 65) scoreColor = 'warning';
 
   return (
     <div className={styles.container}>
@@ -139,34 +130,34 @@ export const ResultsPage = () => {
         <Card className={styles.scoreCard}>
           <div className={styles.scoreCircle}>
             <div className={`${styles.score} ${styles[`score-${scoreColor}`]}`}>
-              {Math.round(results.overall_score)}
+              {Math.round(overallScore)}
             </div>
-            <span className={styles.scoreLabel}>Overall Score</span>
+            <span className={styles.scoreLabel}>{t('results.overallScore')}</span>
           </div>
         </Card>
 
         <Card className={styles.infoCard}>
-          <h2>{results.job_role}</h2>
+          <h2>{results.job_role || results.role || '-'}</h2>
           <span className={styles.domain}>{results.domain}</span>
           <div className={styles.badges}>
             <Badge variant="primary">
-              {results.question_scores?.length || 0} Questions Answered
+              {t('results.questionsAnswered', { count: results.question_scores?.length || 0 })}
             </Badge>
-            <Badge variant="success">Interview Complete</Badge>
+            <Badge variant="success">{t('results.interviewComplete')}</Badge>
           </div>
         </Card>
       </div>
 
       {/* RESUME MATCH ANALYSIS - KEY DIFFERENTIATOR */}
       <Card className={styles.analysisCard}>
-        <h3 className={styles.sectionTitle}>📊 Resume Match Analysis</h3>
+        <h3 className={styles.sectionTitle}>{t('results.resumeMatch')}</h3>
         <p className={styles.subtitle}>
-          How well your resume aligns with the job requirements
+          {t('results.resumeMatchSubtitle')}
         </p>
 
         <div className={styles.metricsGrid}>
           <div className={styles.metric}>
-            <span className={styles.metricLabel}>ATS Score</span>
+            <span className={styles.metricLabel}>{t('results.atsScore')}</span>
             <ProgressBar value={results.skill_match?.ats_score || 0} max={100} />
             <span className={styles.metricValue}>
               {Math.round(results.skill_match?.ats_score || 0)}%
@@ -174,45 +165,45 @@ export const ResultsPage = () => {
           </div>
 
           <div className={styles.metric}>
-            <span className={styles.metricLabel}>Matched Skills</span>
+            <span className={styles.metricLabel}>{t('results.matchedSkills')}</span>
             <div className={styles.skillsList}>
               {results.skill_match?.matched_skills?.slice(0, 3).map((skill, idx) => (
                 <Badge key={idx} variant="success">{skill}</Badge>
               ))}
             </div>
             <span className={styles.count}>
-              {results.skill_match?.matched_skills?.length || 0} skills matched
+              {t('results.skillsMatched', { count: results.skill_match?.matched_skills?.length || 0 })}
             </span>
           </div>
 
           <div className={styles.metric}>
-            <span className={styles.metricLabel}>Missing Skills</span>
+            <span className={styles.metricLabel}>{t('results.missingSkills')}</span>
             <div className={styles.skillsList}>
               {results.skill_match?.missing_skills?.slice(0, 3).map((skill, idx) => (
                 <Badge key={idx} variant="warning">{skill}</Badge>
               ))}
             </div>
             <span className={styles.count}>
-              {results.skill_match?.missing_skills?.length || 0} skills to develop
+              {t('results.skillsToDevelop', { count: results.skill_match?.missing_skills?.length || 0 })}
             </span>
           </div>
 
           <div className={styles.metric}>
-            <span className={styles.metricLabel}>Keyword Gaps</span>
+            <span className={styles.metricLabel}>{t('results.keywordGaps')}</span>
             <div className={styles.skillsList}>
               {results.skill_match?.keyword_gaps?.slice(0, 3).map((kw, idx) => (
                 <Badge key={idx} variant="warning">{kw}</Badge>
               ))}
             </div>
             <span className={styles.count}>
-              {results.skill_match?.keyword_gaps?.length || 0} keywords to add
+              {t('results.keywordsToAdd', { count: results.skill_match?.keyword_gaps?.length || 0 })}
             </span>
           </div>
         </div>
 
         {results.skill_match?.experience_gap && (
           <div className={styles.experienceGap}>
-            <span className={styles.label}>Experience Gap:</span>
+            <span className={styles.label}>{t('results.experienceGap')}</span>
             <span>{results.skill_match.experience_gap}</span>
           </div>
         )}
@@ -220,11 +211,11 @@ export const ResultsPage = () => {
 
       {/* Resume Suggestions */}
       <Card className={styles.suggestionsCard}>
-        <h3 className={styles.sectionTitle}>🎯 Resume Improvement Suggestions</h3>
+        <h3 className={styles.sectionTitle}>{t('results.resumeSuggestions')}</h3>
 
         <div className={styles.suggestionsGrid}>
           <div className={styles.suggestionGroup}>
-            <h4>Improvements</h4>
+            <h4>{t('results.improvements')}</h4>
             <ul>
               {results.resume_suggestions?.improvement_suggestions?.slice(0, 5).map((sugg, idx) => (
                 <li key={idx}>✓ {sugg}</li>
@@ -233,7 +224,7 @@ export const ResultsPage = () => {
           </div>
 
           <div className={styles.suggestionGroup}>
-            <h4>ATS Optimization Tips</h4>
+            <h4>{t('results.atsTips')}</h4>
             <ul>
               {results.resume_suggestions?.ats_optimization_tips?.slice(0, 5).map((tip, idx) => (
                 <li key={idx}>⚡ {tip}</li>
@@ -245,7 +236,7 @@ export const ResultsPage = () => {
 
       {/* Question Performance */}
       <Card className={styles.performanceCard}>
-        <h3 className={styles.sectionTitle}>💬 Question Performance</h3>
+        <h3 className={styles.sectionTitle}>{t('results.questionPerformance')}</h3>
 
         {results.question_scores?.map((q, idx) => (
           <div key={idx} className={styles.questionResult}>
@@ -261,12 +252,12 @@ export const ResultsPage = () => {
             )}
             {q.strengths?.length > 0 && (
               <div className={styles.strengths}>
-                <strong>Strengths:</strong> {q.strengths.join(', ')}
+                <strong>{t('results.strengths')}</strong> {q.strengths.join(', ')}
               </div>
             )}
             {q.improvements?.length > 0 && (
               <div className={styles.improvements}>
-                <strong>To improve:</strong> {q.improvements.join(', ')}
+                <strong>{t('results.toImprove')}</strong> {q.improvements.join(', ')}
               </div>
             )}
           </div>
@@ -276,10 +267,10 @@ export const ResultsPage = () => {
       {/* Actions */}
       <div className={styles.actions}>
         <Button variant="secondary" onClick={() => navigate('/dashboard')}>
-          Back to Dashboard
+          {t('results.backDashboard')}
         </Button>
         <Button variant="primary" onClick={() => navigate('/setup')}>
-          Take Another Interview
+          {t('results.takeAnother')}
         </Button>
       </div>
     </div>

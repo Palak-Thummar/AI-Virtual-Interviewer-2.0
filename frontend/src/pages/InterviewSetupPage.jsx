@@ -4,14 +4,14 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { resumeAPI, interviewAPI, settingsAPI } from '../services/api';
+import { useTranslation } from 'react-i18next';
+import { interviewAPI, parseApiError, resumeAPI, settingsAPI } from '../services/api';
 import { Button, Input, TextArea, Select, Alert, Card, Spinner, Badge } from '../components/UI';
 import styles from './InterviewSetup.module.css';
 
 export const InterviewSetupPage = () => {
-  const { token } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   
   // Resume upload
@@ -22,6 +22,7 @@ export const InterviewSetupPage = () => {
   // Interview setup
   const [jobRole, setJobRole] = useState('');
   const [domain, setDomain] = useState('');
+  const [programmingLanguage, setProgrammingLanguage] = useState('Python');
   const [jobDescription, setJobDescription] = useState('');
   const [numQuestions, setNumQuestions] = useState(5);
   const [analysisData, setAnalysisData] = useState(null);
@@ -56,7 +57,7 @@ export const InterviewSetupPage = () => {
       setResumeId(response.data.resume_id);
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to upload resume');
+      setError(parseApiError(err, 'Failed to upload resume.'));
     } finally {
       setResumeLoading(false);
     }
@@ -64,16 +65,20 @@ export const InterviewSetupPage = () => {
 
   // Start interview
   const handleStartInterview = async () => {
+    if (!resumeId) {
+      setError(t('setup.validation.resume'));
+      return;
+    }
     if (!jobRole) {
-      setError('Please enter job role');
+      setError(t('setup.validation.jobRole'));
       return;
     }
     if (!domain) {
-      setError('Please select domain');
+      setError(t('setup.validation.domain'));
       return;
     }
     if (!jobDescription) {
-      setError('Please paste job description');
+      setError(t('setup.validation.jobDescription'));
       return;
     }
 
@@ -85,6 +90,7 @@ export const InterviewSetupPage = () => {
       const analysisResponse = await interviewAPI.create({
         job_role: jobRole,
         domain,
+        programming_language: programmingLanguage,
         job_description: jobDescription,
         resume_id: resumeId,
         num_questions: numQuestions
@@ -93,7 +99,7 @@ export const InterviewSetupPage = () => {
       setAnalysisData(analysisResponse.data);
       setStep(3);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create interview');
+      setError(parseApiError(err, 'Failed to create interview.'));
     } finally {
       setLoading(false);
     }
@@ -112,33 +118,41 @@ export const InterviewSetupPage = () => {
   };
 
   const domainOptions = [
-    { value: 'Backend', label: 'Backend Development' },
-    { value: 'Frontend', label: 'Frontend Development' },
-    { value: 'Fullstack', label: 'Full Stack Development' },
-    { value: 'DevOps', label: 'DevOps / Infrastructure' },
-    { value: 'Data', label: 'Data Engineering / ML' },
-    { value: 'Mobile', label: 'Mobile Development' }
+    { value: 'Backend', label: t('setup.domains.backend') },
+    { value: 'Frontend', label: t('setup.domains.frontend') },
+    { value: 'Fullstack', label: t('setup.domains.fullstack') },
+    { value: 'DevOps', label: t('setup.domains.devops') },
+    { value: 'Data', label: t('setup.domains.data') },
+    { value: 'Mobile', label: t('setup.domains.mobile') }
+  ];
+
+  const programmingLanguageOptions = [
+    { value: 'Python', label: 'Python' },
+    { value: 'Java', label: 'Java' },
+    { value: 'C++', label: 'C++' },
+    { value: 'JavaScript', label: 'JavaScript' },
+    { value: 'Go', label: 'Go' }
   ];
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>🚀 Start Your Interview</h1>
-        <p>We'll analyze your resume against the job description to create personalized questions</p>
+        <h1>{t('setup.title')}</h1>
+        <p>{t('setup.subtitle')}</p>
       </div>
 
       <div className={styles.steps}>
         <div className={`${styles.step} ${step >= 1 ? styles.active : ''}`}>
           <span className={styles.stepNumber}>1</span>
-          <span>Resume</span>
+          <span>{t('setup.steps.resume')}</span>
         </div>
         <div className={`${styles.step} ${step >= 2 ? styles.active : ''}`}>
           <span className={styles.stepNumber}>2</span>
-          <span>Details</span>
+          <span>{t('setup.steps.details')}</span>
         </div>
         <div className={`${styles.step} ${step >= 3 ? styles.active : ''}`}>
           <span className={styles.stepNumber}>3</span>
-          <span>Review</span>
+          <span>{t('setup.steps.review')}</span>
         </div>
       </div>
 
@@ -147,9 +161,9 @@ export const InterviewSetupPage = () => {
       {/* Step 1: Resume Upload */}
       {step === 1 && (
         <Card className={styles.card}>
-          <h2>📄 Upload Your Resume</h2>
+          <h2>{t('setup.uploadTitle')}</h2>
           <p className={styles.description}>
-            We'll analyze your resume against the job description to tailor questions
+            {t('setup.uploadDescription')}
           </p>
 
           <div className={styles.uploadArea}>
@@ -165,9 +179,9 @@ export const InterviewSetupPage = () => {
               <div className={styles.uploadContent}>
                 <span className={styles.uploadIcon}>📎</span>
                 <span className={styles.uploadText}>
-                  {resumeFile ? resumeFile.name : 'Click to upload or drag and drop'}
+                  {resumeFile ? resumeFile.name : t('setup.uploadPrompt')}
                 </span>
-                <span className={styles.uploadNote}>PDF or DOCX (10MB max)</span>
+                <span className={styles.uploadNote}>{t('setup.uploadNote')}</span>
               </div>
             </label>
           </div>
@@ -175,13 +189,13 @@ export const InterviewSetupPage = () => {
           {resumeLoading && (
             <div className={styles.loading}>
               <Spinner size="sm" />
-              <span>Parsing your resume...</span>
+              <span>{t('setup.uploading')}</span>
             </div>
           )}
 
           {resumeId && (
             <div className={styles.success}>
-              ✅ Resume uploaded successfully!
+              {t('setup.uploadSuccess')}
             </div>
           )}
         </Card>
@@ -190,25 +204,34 @@ export const InterviewSetupPage = () => {
       {/* Step 2: Job Details */}
       {step === 2 && (
         <Card className={styles.card}>
-          <h2>💼 Job Details</h2>
+          <h2>{t('setup.detailsTitle')}</h2>
 
           <Input
-            label="Job Role / Title"
+            label={t('setup.jobRole')}
             value={jobRole}
             onChange={(e) => setJobRole(e.target.value)}
-            placeholder="e.g., Senior Backend Engineer"
+            placeholder="Senior Backend Engineer"
           />
 
           <Select
-            label="Technical Domain"
+            label={t('setup.domain')}
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             options={domainOptions}
+            placeholder={t('setup.domain')}
+          />
+
+          <Select
+            label={t('setup.programmingLanguage')}
+            value={programmingLanguage}
+            onChange={(e) => setProgrammingLanguage(e.target.value)}
+            options={programmingLanguageOptions}
+            placeholder={t('setup.programmingLanguage')}
           />
 
           <Input
             type="number"
-            label="Number of Questions"
+            label={t('setup.questionCount')}
             value={numQuestions}
             onChange={(e) => setNumQuestions(Math.min(20, Math.max(1, parseInt(e.target.value))))}
             min="1"
@@ -216,10 +239,10 @@ export const InterviewSetupPage = () => {
           />
 
           <TextArea
-            label="Paste Job Description"
+            label={t('setup.jobDescription')}
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste the full job description here..."
+            placeholder={t('dashboard.jobDescriptionPlaceholder')}
             rows={8}
           />
 
@@ -228,14 +251,14 @@ export const InterviewSetupPage = () => {
               variant="secondary"
               onClick={() => setStep(1)}
             >
-              ← Back
+              {t('setup.back')}
             </Button>
             <Button
               variant="primary"
               onClick={handleStartInterview}
               loading={loading}
             >
-              {loading ? 'Analyzing...' : 'Generate Questions →'}
+              {loading ? t('setup.analyzing') : t('setup.generateQuestions')}
             </Button>
           </div>
         </Card>
@@ -245,11 +268,12 @@ export const InterviewSetupPage = () => {
       {step === 3 && analysisData && (
         <>
           <Card className={styles.card}>
-            <h2>✨ Interview Ready</h2>
+            <h2>{t('setup.reviewTitle')}</h2>
             <div className={styles.reviewInfo}>
               <Badge variant="primary">{analysisData.questions?.length || numQuestions} Questions</Badge>
               <Badge>{analysisData.domain}</Badge>
               <Badge>{analysisData.job_role}</Badge>
+              <Badge>{analysisData.programming_language || programmingLanguage}</Badge>
             </div>
           </Card>
 
@@ -287,14 +311,14 @@ export const InterviewSetupPage = () => {
               variant="secondary"
               onClick={() => setStep(2)}
             >
-              ← Back to Edit
+              {t('setup.backToEdit')}
             </Button>
             <Button
               variant="primary"
               onClick={handleConfirmStart}
               size="lg"
             >
-              Start Interview 🎯
+              {t('setup.startInterview')}
             </Button>
           </div>
         </>

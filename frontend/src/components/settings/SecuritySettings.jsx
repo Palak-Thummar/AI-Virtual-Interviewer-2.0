@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import styles from './SettingsSections.module.css';
 
 export const SecuritySettings = () => {
+  const { t } = useTranslation();
   const changePassword = useSettingsStore((state) => state.changePassword);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -14,15 +16,15 @@ export const SecuritySettings = () => {
 
   const handleSave = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError('All password fields are required.');
+      setError(t('settings.security.validation.required'));
       return;
     }
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+      setError(t('settings.security.validation.length'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('New password and confirm password must match.');
+      setError(t('settings.security.validation.match'));
       return;
     }
 
@@ -38,7 +40,7 @@ export const SecuritySettings = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setMessage('Password changed successfully.');
+      setMessage(t('settings.security.saved'));
     } catch (err) {
       setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to change password');
     } finally {
@@ -48,11 +50,11 @@ export const SecuritySettings = () => {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>Security Controls</h2>
-      <p className={styles.subtitle}>Update your account password securely.</p>
+      <h2 className={styles.title}>{t('settings.security.title')}</h2>
+      <p className={styles.subtitle}>{t('settings.security.subtitle')}</p>
 
       <div className={styles.field}>
-        <label>Current Password</label>
+        <label>{t('settings.security.currentPassword')}</label>
         <input
           type="password"
           className={styles.input}
@@ -63,7 +65,7 @@ export const SecuritySettings = () => {
 
       <div className={styles.grid}>
         <div className={styles.field}>
-          <label>New Password</label>
+          <label>{t('settings.security.newPassword')}</label>
           <input
             type="password"
             className={styles.input}
@@ -72,7 +74,7 @@ export const SecuritySettings = () => {
           />
         </div>
         <div className={styles.field}>
-          <label>Confirm New Password</label>
+          <label>{t('settings.security.confirmPassword')}</label>
           <input
             type="password"
             className={styles.input}
@@ -87,7 +89,7 @@ export const SecuritySettings = () => {
 
       <div className={styles.actions}>
         <button type="button" className={styles.primaryButton} onClick={handleSave} disabled={loading}>
-          {loading ? 'Updating...' : 'Save Password'}
+          {loading ? t('settings.security.saving') : t('settings.security.save')}
         </button>
       </div>
     </section>

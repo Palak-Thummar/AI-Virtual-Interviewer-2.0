@@ -10,6 +10,7 @@ import {
   Tooltip
 } from 'recharts';
 import { Loader2, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { analyticsAPI } from '../services/api';
 import styles from './InterviewHistory.module.css';
 
@@ -21,6 +22,7 @@ const defaultSkillBreakdown = {
 };
 
 export const InterviewHistoryPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,14 +81,14 @@ export const InterviewHistoryPage = () => {
   return (
     <section className={styles.page}>
       <header className={styles.header}>
-        <h1>Interview History</h1>
-        <p>Track your progress over time</p>
+        <h1>{t('history.title')}</h1>
+        <p>{t('history.subtitle')}</p>
       </header>
 
       {loading ? (
         <div className={styles.loadingCard}>
           <Loader2 className={styles.spin} size={22} />
-          <p>Loading interview history...</p>
+          <p>{t('history.loading')}</p>
         </div>
       ) : null}
 
@@ -94,14 +96,14 @@ export const InterviewHistoryPage = () => {
         <div className={styles.errorCard}>
           <p>{error}</p>
           <button type="button" className={styles.primaryButton} onClick={fetchHistory}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       ) : null}
 
       {!loading && !error && interviews.length === 0 ? (
         <div className={styles.emptyCard}>
-          <p>No interviews completed yet.</p>
+          <p>{t('history.empty')}</p>
         </div>
       ) : null}
 
@@ -109,50 +111,54 @@ export const InterviewHistoryPage = () => {
         <>
           <section className={styles.summaryStrip}>
             <article className={styles.summaryItem}>
-              <span>Total Interviews</span>
+              <span>{t('history.summary.total')}</span>
               <strong>{summary.total}</strong>
             </article>
             <article className={styles.summaryItem}>
-              <span>Completed</span>
+              <span>{t('history.summary.completed')}</span>
               <strong>{summary.completed}</strong>
             </article>
             <article className={styles.summaryItem}>
-              <span>Pending</span>
+              <span>{t('history.summary.pending')}</span>
               <strong>{summary.pending}</strong>
             </article>
             <article className={styles.summaryItem}>
-              <span>Average Score</span>
+              <span>{t('history.summary.average')}</span>
               <strong>{summary.averageScore}%</strong>
             </article>
           </section>
 
           <article className={styles.card}>
-            <h2>Performance Timeline</h2>
-            <div className={styles.chartWrap}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timelineData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <h2>{t('history.timeline')}</h2>
+            {timelineData.length > 0 ? (
+              <div className={styles.chartWrap}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timelineData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p>{t('career.emptyTitle')}</p>
+            )}
           </article>
 
           <article className={styles.card}>
-            <h2>Interview Table</h2>
+            <h2>{t('history.table')}</h2>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Role</th>
-                    <th>Company</th>
-                    <th>Score</th>
-                    <th>Status</th>
-                    <th>Action</th>
+                    <th>{t('history.date')}</th>
+                    <th>{t('history.role')}</th>
+                    <th>{t('history.company')}</th>
+                    <th>{t('history.score')}</th>
+                    <th>{t('history.status')}</th>
+                    <th>{t('history.action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,7 +182,7 @@ export const InterviewHistoryPage = () => {
                               className={styles.secondaryButton}
                               onClick={() => navigate(`/interview/${item?.id}?resume=true`)}
                             >
-                              Resume
+                              {t('history.resume')}
                             </button>
                           ) : (
                             <button
@@ -184,7 +190,7 @@ export const InterviewHistoryPage = () => {
                               className={styles.secondaryButton}
                               onClick={() => navigate(`/results/${item?.id}`)}
                             >
-                              View Report
+                              {t('history.viewReport')}
                             </button>
                           )}
                           <button
@@ -193,7 +199,7 @@ export const InterviewHistoryPage = () => {
                             onClick={() => setSelectedInterview(item)}
                             style={{ marginLeft: 8 }}
                           >
-                            Details
+                            {t('history.details')}
                           </button>
                         </td>
                       </tr>
@@ -210,7 +216,7 @@ export const InterviewHistoryPage = () => {
         <div className={styles.modalBackdrop} onClick={() => setSelectedInterview(null)}>
           <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>{selectedInterview?.role || 'Interview Details'}</h3>
+              <h3>{selectedInterview?.role || t('history.detailsTitle')}</h3>
               <button type="button" className={styles.iconButton} onClick={() => setSelectedInterview(null)}>
                 <X size={16} />
               </button>
@@ -218,20 +224,20 @@ export const InterviewHistoryPage = () => {
 
             <div className={styles.modalBody}>
               <div className={styles.detailRow}>
-                <span>Company</span>
+                <span>{t('history.company')}</span>
                 <strong>{selectedInterview?.company || '-'}</strong>
               </div>
               <div className={styles.detailRow}>
-                <span>Status</span>
+                <span>{t('history.status')}</span>
                 <strong>{selectedInterview?.status || '-'}</strong>
               </div>
               <div className={styles.detailRow}>
-                <span>Score</span>
+                <span>{t('history.score')}</span>
                 <strong>{Number(selectedInterview?.score || 0)}%</strong>
               </div>
 
               <div className={styles.breakdownBlock}>
-                <h4>Skill Breakdown</h4>
+                <h4>{t('history.skillBreakdown')}</h4>
                 <ul>
                   {Object.entries(selectedInterview?.skill_breakdown || defaultSkillBreakdown).map(([key, value]) => (
                     <li key={key}>
@@ -244,14 +250,14 @@ export const InterviewHistoryPage = () => {
 
               {Array.isArray(selectedInterview?.strengths) && selectedInterview.strengths.length > 0 ? (
                 <div className={styles.textBlock}>
-                  <h4>Strengths</h4>
+                  <h4>{t('history.strengths')}</h4>
                   <p>{selectedInterview.strengths.join(', ')}</p>
                 </div>
               ) : null}
 
               {Array.isArray(selectedInterview?.weaknesses) && selectedInterview.weaknesses.length > 0 ? (
                 <div className={styles.textBlock}>
-                  <h4>Weaknesses</h4>
+                  <h4>{t('history.weaknesses')}</h4>
                   <p>{selectedInterview.weaknesses.join(', ')}</p>
                 </div>
               ) : null}

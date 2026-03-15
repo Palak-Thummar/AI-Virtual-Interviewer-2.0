@@ -22,6 +22,7 @@ export const InterviewSetupPage = () => {
   // Interview setup
   const [jobRole, setJobRole] = useState('');
   const [domain, setDomain] = useState('');
+  const [interviewType, setInterviewType] = useState('general');
   const [programmingLanguage, setProgrammingLanguage] = useState('Python');
   const [jobDescription, setJobDescription] = useState('');
   const [numQuestions, setNumQuestions] = useState(5);
@@ -90,6 +91,7 @@ export const InterviewSetupPage = () => {
       const analysisResponse = await interviewAPI.create({
         job_role: jobRole,
         domain,
+        interview_type: interviewType,
         programming_language: programmingLanguage,
         job_description: jobDescription,
         resume_id: resumeId,
@@ -132,6 +134,12 @@ export const InterviewSetupPage = () => {
     { value: 'C++', label: 'C++' },
     { value: 'JavaScript', label: 'JavaScript' },
     { value: 'Go', label: 'Go' }
+  ];
+
+  const interviewTypeOptions = [
+    { value: 'general', label: 'General Interview' },
+    { value: 'coding', label: 'Coding Interview' },
+    { value: 'voice', label: 'Voice Mock Interview' }
   ];
 
   return (
@@ -219,6 +227,14 @@ export const InterviewSetupPage = () => {
             onChange={(e) => setDomain(e.target.value)}
             options={domainOptions}
             placeholder={t('setup.domain')}
+          />
+
+          <Select
+            label="Interview Type"
+            value={interviewType}
+            onChange={(e) => setInterviewType(e.target.value)}
+            options={interviewTypeOptions}
+            placeholder="Interview Type"
           />
 
           <Select

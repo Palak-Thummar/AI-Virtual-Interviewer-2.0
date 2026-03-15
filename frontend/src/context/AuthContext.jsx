@@ -6,25 +6,22 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);  // Start as true
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Verify token on app load
   useEffect(() => {
     const verifyToken = async () => {
       const storedToken = localStorage.getItem('token');
-      
       if (!storedToken) {
         setLoading(false);
         return;
       }
-
       try {
         const response = await authAPI.verifyToken(storedToken);
-        
         setUser(response.data);
         setToken(storedToken);
-      } catch (err) {
+      } catch {
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
@@ -32,8 +29,20 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     };
-
     verifyToken();
+  }, []);
+
+  // Refresh user profile from server
+  const refreshUser = useCallback(async () => {
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) return null;
+    try {
+      const response = await authAPI.verifyToken(storedToken);
+      setUser(response.data);
+      return response.data;
+    } catch {
+      return null;
+    }
   }, []);
 
   // Register user
@@ -42,12 +51,10 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await authAPI.register(name.trim(), email.trim().toLowerCase(), password.trim());
-      
       const { access_token, user } = response.data;
       setToken(access_token);
       setUser(user);
       localStorage.setItem('token', access_token);
-      
       return { success: true, user };
     } catch (err) {
       const message = parseApiError(err, 'Registration failed.');
@@ -64,12 +71,10 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await authAPI.login(email.trim().toLowerCase(), password.trim());
-      
       const { access_token, user } = response.data;
       setToken(access_token);
       setUser(user);
       localStorage.setItem('token', access_token);
-      
       return { success: true, user };
     } catch (err) {
       const message = parseApiError(err, 'Login failed.');
@@ -108,7 +113,9 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     getProfile,
-    isAuthenticated: !!token
+    refreshUser,
+    isAuthenticated: !!token,
+    needsOnboarding: !!token && user != null && user.onboarding_completed === false
   };
 
   return (
@@ -125,3 +132,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

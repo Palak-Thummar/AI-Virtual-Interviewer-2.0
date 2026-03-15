@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Clock3, Loader2, Target, Trophy } from 'lucide-react';
+import Editor from '@monaco-editor/react';
+import { Clock3, Loader2, Target, Trophy, Mic, MicOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { interviewAPI, parseApiError } from '../services/api';
 import { useIntelligenceStore } from '../context/IntelligenceStore';
@@ -24,8 +25,12 @@ export const InterviewSessionPage = () => {
   const [timer, setTimer] = useState(QUESTION_TIME_SECONDS);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [feedbackExpanded, setFeedbackExpanded] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [recognitionInstance, setRecognitionInstance] = useState(null);
 
   useEffect(() => {
     const loadInterview = async () => {
@@ -48,6 +53,8 @@ export const InterviewSessionPage = () => {
           id: data.id,
           role: data.role || data.job_role || '',
           type: data.type || 'general',
+          interview_type: data.interview_type || 'general',
+          programming_language: data.programming_language || 'python',
           questions: Array.isArray(data.questions) ? data.questions : [],
           answers: Array.isArray(data.answers) ? data.answers : []
         });
@@ -63,6 +70,36 @@ export const InterviewSessionPage = () => {
 
     loadInterview();
   }, [interviewId, isResuming, navigate]);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        transcript += event.results[i][0].transcript;
+      }
+      if (transcript.trim()) {
+        setCurrentAnswer((prev) => `${prev}${prev ? ' ' : ''}${transcript}`.trim());
+      }
+    };
+    recognition.onend = () => setIsRecording(false);
+
+    setRecognitionInstance(recognition);
+    setSpeechSupported(true);
+
+    return () => {
+      recognition.stop();
+    };
+  }, []);
 
   useEffect(() => {
     if (loading || completed || feedback || !interview?.questions?.length) return;
@@ -117,7 +154,10 @@ export const InterviewSessionPage = () => {
       const response = await interviewAPI.submitAnswer(interviewId, {
         question_id: currentQuestionIndex,
         answer: currentAnswer.trim(),
-        skipped: false
+        skipped: false,
+        answer_type: interview?.interview_type === 'coding' ? 'code' : (interview?.interview_type === 'voice' ? 'voice' : 'text'),
+        language: interview?.programming_language || 'python',
+        audio_url: interview?.interview_type === 'voice' ? 'captured-via-web-speech-api' : null
       });
       const data = response?.data || {};
 
@@ -128,7 +168,12 @@ export const InterviewSessionPage = () => {
         score: Number(data?.score || 0),
         feedback: data?.feedback || '',
         strengths: Array.isArray(data?.strengths) ? data.strengths : [],
-        improvements: Array.isArray(data?.improvements) ? data.improvements : []
+        weaknesses: Array.isArray(data?.weaknesses) ? data.weaknesses : [],
+        improvements: Array.isArray(data?.improvements) ? data.improvements : [],
+        improvement_tips: Array.isArray(data?.improvement_tips) ? data.improvement_tips : [],
+        ideal_answer: data?.ideal_answer || '',
+        runtime_ms: data?.runtime_ms ?? null,
+        test_case_success: data?.test_case_success ?? null,
       };
 
       appendAnswerLocally(answerRecord);
@@ -205,6 +250,17 @@ export const InterviewSessionPage = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const toggleRecording = () => {
+    if (!recognitionInstance) return;
+    if (isRecording) {
+      recognitionInstance.stop();
+      setIsRecording(false);
+      return;
+    }
+    recognitionInstance.start();
+    setIsRecording(true);
   };
 
   const timerClassName = `${styles.timer} ${timer < 10 ? styles.timerDanger : ''}`;
@@ -327,13 +383,37 @@ export const InterviewSessionPage = () => {
           </article>
 
           <article className={styles.answerCard}>
-            <textarea
-              className={styles.answerInput}
-              value={currentAnswer}
-              onChange={(event) => setCurrentAnswer(event.target.value)}
-              placeholder={t('session.answerPlaceholder')}
-              rows={7}
-            />
+            {interview?.interview_type === 'coding' ? (
+              <Editor
+                height="320px"
+                language={(interview?.programming_language || 'python').toLowerCase()}
+                value={currentAnswer}
+                onChange={(value) => setCurrentAnswer(value || '')}
+                options={{ minimap: { enabled: false }, fontSize: 14, automaticLayout: true }}
+              />
+            ) : (
+              <textarea
+                className={styles.answerInput}
+                value={currentAnswer}
+                onChange={(event) => setCurrentAnswer(event.target.value)}
+                placeholder={t('session.answerPlaceholder')}
+                rows={7}
+              />
+            )}
+
+            {interview?.interview_type === 'voice' ? (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={toggleRecording}
+                  disabled={!speechSupported}
+                >
+                  {isRecording ? <MicOff size={15} /> : <Mic size={15} />} {isRecording ? 'Stop Recording' : 'Start Recording'}
+                </button>
+              </div>
+            ) : null}
+
             <div className={styles.answerMeta}>
               <span>{t('session.characters', { count: currentAnswer.length })}</span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -362,27 +442,64 @@ export const InterviewSessionPage = () => {
           </article>
 
           <article className={styles.panel}>
-            <h3 className={styles.panelTitle}>{t('session.feedback.aiFeedback')}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className={styles.panelTitle}>{t('session.feedback.aiFeedback')}</h3>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setFeedbackExpanded((prev) => !prev)}
+              >
+                {feedbackExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {feedbackExpanded ? 'Collapse' : 'Expand'}
+              </button>
+            </div>
             <div className={`${styles.scoreBadge} ${scoreClassName}`}>{t('session.feedback.score', { score: Number(feedback.score || 0) })}</div>
 
-            {feedback.feedback ? (
+            {feedback.runtime_ms != null ? (
+              <div className={styles.feedbackBlock}>
+                <h4>Runtime</h4>
+                <p>{Number(feedback.runtime_ms).toFixed(0)} ms</p>
+              </div>
+            ) : null}
+
+            {feedback.test_case_success != null ? (
+              <div className={styles.feedbackBlock}>
+                <h4>Test Case Success</h4>
+                <p>{Number(feedback.test_case_success).toFixed(0)}%</p>
+              </div>
+            ) : null}
+
+            {feedbackExpanded && feedback.feedback ? (
               <div className={styles.feedbackBlock}>
                 <h4>{t('session.feedback.overall')}</h4>
                 <p>{feedback.feedback}</p>
               </div>
             ) : null}
 
-            {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 ? (
+            {feedbackExpanded && Array.isArray(feedback.strengths) && feedback.strengths.length > 0 ? (
               <div className={styles.feedbackBlock}>
                 <h4>{t('session.feedback.strengths')}</h4>
                 <p>{feedback.strengths.join(', ')}</p>
               </div>
             ) : null}
 
-            {Array.isArray(feedback.improvements) && feedback.improvements.length > 0 ? (
+            {feedbackExpanded && Array.isArray(feedback.weaknesses) && feedback.weaknesses.length > 0 ? (
+              <div className={styles.feedbackBlock}>
+                <h4>Weaknesses</h4>
+                <p>{feedback.weaknesses.join(', ')}</p>
+              </div>
+            ) : null}
+
+            {feedbackExpanded && Array.isArray(feedback.improvement_tips || feedback.improvements) && (feedback.improvement_tips || feedback.improvements).length > 0 ? (
               <div className={styles.feedbackBlock}>
                 <h4>{t('session.feedback.improvements')}</h4>
-                <p>{feedback.improvements.join(', ')}</p>
+                <p>{(feedback.improvement_tips || feedback.improvements).join(', ')}</p>
+              </div>
+            ) : null}
+
+            {feedbackExpanded && feedback.ideal_answer ? (
+              <div className={styles.feedbackBlock}>
+                <h4>Ideal Answer</h4>
+                <p>{feedback.ideal_answer}</p>
               </div>
             ) : null}
 

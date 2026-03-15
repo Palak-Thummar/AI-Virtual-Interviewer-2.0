@@ -14,6 +14,19 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React core
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Charting
+          'vendor-charts': ['recharts'],
+          // Icons
+          'vendor-icons': ['lucide-react'],
+        }
+      }
+    }
   }
 })

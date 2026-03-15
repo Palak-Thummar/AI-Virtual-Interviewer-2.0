@@ -1,0 +1,12 @@
+.page { display: grid; gap: 16px; }
+.header h1 { margin: 0; }
+.header p { margin: 6px 0 0; color: #64748b; }
+.chatWrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; display: grid; gap: 10px; }
+.messages { display: grid; gap: 8px; max-height: 460px; overflow: auto; padding-right: 4px; }
+.bubble { border-radius: 12px; padding: 10px; line-height: 1.45; }
+.user { background: #dbeafe; justify-self: end; max-width: 85%; }
+.assistant { background: #f8fafc; border: 1px solid #e2e8f0; max-width: 90%; }
+.composer { display: grid; gap: 8px; }
+.composer textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; font: inherit; }
+.composer button { justify-self: end; border: 0; border-radius: 10px; background: #2563eb; color: #fff; padding: 8px 14px; cursor: pointer; }
+.error { color: #b91c1c; margin: 0; }

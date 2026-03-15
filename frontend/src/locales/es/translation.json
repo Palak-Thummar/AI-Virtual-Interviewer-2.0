@@ -334,5 +334,12 @@
     "toImprove": "Para mejorar:",
     "backDashboard": "Volver al panel",
     "takeAnother": "Tomar otra entrevista"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "subtitle": "Ultimas actualizaciones de tu espacio de entrevistas",
+    "loading": "Cargando notificaciones...",
+    "empty": "Aun no hay notificaciones",
+    "markAllRead": "Marcar todo como leido"
   }
 }

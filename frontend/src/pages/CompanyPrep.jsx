@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { interviewAPI, settingsAPI } from '../services/api';
 import styles from './CompanyPrep.module.css';
 
-const COMPANIES = ['Amazon', 'Google', 'Microsoft', 'TCS', 'Infosys', 'Startup'];
+const COMPANIES = ['Amazon', 'Google', 'Microsoft', 'Meta', 'Netflix', 'Uber'];
 
 const STORAGE_KEY = 'company_prep_state_v1';
 

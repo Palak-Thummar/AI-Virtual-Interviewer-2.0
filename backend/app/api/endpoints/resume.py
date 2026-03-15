@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.schemas.api import ResumeResponse, ResumeUploadResponse, SkillMatch, ResumeSuggestion
 from app.services.resume_parser import extract_resume_text, clean_text
 from app.services.jd_resume_analyzer import analyze_resume_against_jd
+from app.services.notification_service import create_notification
 from app.utils.helpers import (
     validate_file_upload,
     generate_safe_filename,
@@ -180,6 +181,14 @@ async def upload_resume(
     
     result = resumes_collection.insert_one(resume_doc)
     resume_id = str(result.inserted_id)
+
+    create_notification(
+        user_id=current_user_id,
+        notification_type="RESUME_ANALYSIS",
+        title="Resume Uploaded",
+        message="Your resume was uploaded and parsed successfully.",
+        metadata={"resume_id": resume_id, "source": "resume_upload"},
+    )
     
     return ResumeUploadResponse(
         message="Resume uploaded successfully",

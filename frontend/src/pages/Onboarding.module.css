@@ -1,0 +1,159 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+  padding: 2rem 1rem;
+}
+
+/* Progress bar */
+.progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.progressStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0.4;
+  transition: opacity 0.25s;
+}
+
+.progressStep.progressActive {
+  opacity: 1;
+}
+
+.progressDot {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #64748b;
+  transition: background 0.25s, border-color 0.25s, color 0.25s;
+}
+
+.progressActive .progressDot {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #fff;
+}
+
+.progressLabel {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-align: center;
+  max-width: 80px;
+  font-weight: 500;
+}
+
+/* Card */
+.card {
+  background: #fff;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 520px;
+}
+
+.title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.4rem;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Upload area */
+.uploadArea {
+  display: block;
+  cursor: pointer;
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.875rem;
+  padding: 2rem;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.uploadArea:hover {
+  border-color: #4f46e5;
+  background: #f5f3ff;
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.uploadIcon {
+  font-size: 2.5rem;
+}
+
+.uploadSuccess {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #16a34a;
+  font-weight: 600;
+  justify-content: center;
+}
+
+.checkIcon {
+  font-size: 1.5rem;
+}
+
+/* Ready message */
+.readyMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 1.5rem;
+  background: #f0fdf4;
+  border-radius: 0.875rem;
+  color: #166534;
+}
+
+.readyIcon {
+  font-size: 3rem;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}

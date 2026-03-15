@@ -22,22 +22,30 @@ import { ResumeRewriterPage } from './pages/ResumeRewriter';
 import { CompanyPrepPage } from './pages/CompanyPrep';
 import { InterviewHistoryPage } from './pages/InterviewHistory';
 import { SettingsPage } from './pages/Settings';
+import { PracticeCenterPage } from './pages/PracticeCenter';
+import { AICoachPage } from './pages/AICoach';
+import { InterviewReplayPage } from './pages/InterviewReplay';
+import { OnboardingPage } from './pages/OnboardingPage';
 import './styles/globals.css';
 
-const ProtectedLayout = () => {
-  const { isAuthenticated, loading } = useAuth();
+const LoadingScreen = () => {
   const { t } = useTranslation();
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-        <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 text-slate-600 shadow-card">
-          {t('common.loading')}
-        </div>
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
+      <div className="rounded-2xl border border-slate-200 bg-white px-8 py-6 text-slate-600 shadow-card">
+        {t('common.loading')}
       </div>
-    );
-  }
-  return isAuthenticated ? <AppLayout /> : <Navigate to="/login" replace />;
+    </div>
+  );
+};
+
+const ProtectedLayout = () => {
+  const { isAuthenticated, loading, needsOnboarding } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (needsOnboarding) return <Navigate to="/onboarding" replace />;
+  return <AppLayout />;
 };
 
 // App Routes
@@ -50,6 +58,9 @@ const AppRoutes = () => (
     <Route path="/login" element={<LoginPage />} />
     <Route path="/register" element={<RegisterPage />} />
 
+    {/* Onboarding – authenticated but separate from the main layout */}
+    <Route path="/onboarding" element={<OnboardingRouteGuard />} />
+
     {/* Protected Routes */}
     <Route element={<ProtectedLayout />}>
       <Route path="/dashboard" element={<DashboardPage />} />
@@ -61,8 +72,11 @@ const AppRoutes = () => (
       <Route path="/results/:interviewId" element={<ResultsPage />} />
       <Route path="/career-intelligence" element={<CareerIntelligencePage />} />
       <Route path="/analytics" element={<CareerIntelligencePage />} />
+      <Route path="/practice-center" element={<PracticeCenterPage />} />
+      <Route path="/ai-coach" element={<AICoachPage />} />
       <Route path="/answer-lab" element={<AnswerLabPage />} />
       <Route path="/resume-rewriter" element={<ResumeRewriterPage />} />
+      <Route path="/interview/:interviewId/replay" element={<InterviewReplayPage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Route>
 
@@ -70,6 +84,15 @@ const AppRoutes = () => (
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
 );
+
+// Guard: /onboarding is only for authenticated users who haven't completed onboarding
+const OnboardingRouteGuard = () => {
+  const { isAuthenticated, loading, needsOnboarding } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!needsOnboarding) return <Navigate to="/dashboard" replace />;
+  return <OnboardingPage />;
+};
 
 // Main App
 export const App = () => {

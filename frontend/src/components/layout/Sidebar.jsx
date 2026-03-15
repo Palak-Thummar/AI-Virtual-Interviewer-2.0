@@ -10,6 +10,8 @@ import {
   MessageSquareText,
   FilePenLine,
   Settings,
+  Bot,
+  Rocket,
   Sparkles,
   Users
 } from 'lucide-react';
@@ -20,6 +22,8 @@ const navItems = [
   { label: 'nav.interviews', to: '/interviews', icon: Users },
   { label: 'nav.companyPrep', to: '/company-prep', icon: Building2 },
   { label: 'nav.careerIntelligence', to: '/career-intelligence', icon: BarChart3 },
+  { label: 'Practice Center', to: '/practice-center', icon: Rocket },
+  { label: 'AI Coach', to: '/ai-coach', icon: Bot },
   { label: 'nav.codingPractice', to: '/coding-practice', icon: Code2 },
   { label: 'nav.answerLab', to: '/answer-lab', icon: MessageSquareText },
   { label: 'nav.resumeRewriter', to: '/resume-rewriter', icon: FilePenLine },

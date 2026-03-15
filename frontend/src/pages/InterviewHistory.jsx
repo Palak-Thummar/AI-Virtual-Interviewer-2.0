@@ -185,13 +185,23 @@ export const InterviewHistoryPage = () => {
                               {t('history.resume')}
                             </button>
                           ) : (
-                            <button
-                              type="button"
-                              className={styles.secondaryButton}
-                              onClick={() => navigate(`/results/${item?.id}`)}
-                            >
-                              {t('history.viewReport')}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className={styles.secondaryButton}
+                                onClick={() => navigate(`/results/${item?.id}`)}
+                              >
+                                {t('history.viewReport')}
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.secondaryButton}
+                                onClick={() => navigate(`/interview/${item?.id}/replay`)}
+                                style={{ marginLeft: 8 }}
+                              >
+                                Review Interview
+                              </button>
+                            </>
                           )}
                           <button
                             type="button"

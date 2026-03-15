@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Bell, ChevronDown, LogOut, Menu, UserCircle2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { NotificationPanel } from '../notifications/NotificationPanel';
+import { useNotificationStore } from '../../stores/notificationStore';
 import styles from './Layout.module.css';
 
 const titleMap = {
@@ -11,6 +13,8 @@ const titleMap = {
   '/company-prep': 'nav.companyPrep',
   '/career-intelligence': 'nav.careerIntelligence',
   '/analytics': 'nav.careerIntelligence',
+  '/practice-center': 'Practice Center',
+  '/ai-coach': 'AI Coach',
   '/setup': 'common.startInterview',
   '/coding-practice': 'nav.codingPractice',
   '/answer-lab': 'nav.answerLab',
@@ -35,12 +39,35 @@ export const Topbar = ({ onOpenSidebar }) => {
   const { user, logout } = useAuth();
   const { t, i18n } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notifications = useNotificationStore((state) => state.notifications);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const loadingNotifications = useNotificationStore((state) => state.loading);
+  const notificationError = useNotificationStore((state) => state.error);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const fetchUnreadCount = useNotificationStore((state) => state.fetchUnreadCount);
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const markAllRead = useNotificationStore((state) => state.markAllRead);
+  const deleteNotification = useNotificationStore((state) => state.deleteNotification);
 
   const pageTitle = useMemo(() => t(resolveTitleKey(pathname)), [pathname, t]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const timer = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [fetchUnreadCount]);
+
+  const handleOpenNotifications = async () => {
+    setNotificationsOpen(true);
+    await fetchNotifications();
   };
 
   return (
@@ -73,9 +100,17 @@ export const Topbar = ({ onOpenSidebar }) => {
             </select>
           </label>
 
-          <button type="button" className={styles.iconButton} aria-label={t('common.notifications')}>
-            <Bell size={17} />
-          </button>
+          <div className={styles.iconWrap}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={t('common.notifications')}
+              onClick={handleOpenNotifications}
+            >
+              <Bell size={17} />
+            </button>
+            {unreadCount > 0 ? <span className={styles.badge}>{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
+          </div>
 
           <div className={styles.profileMenuWrap}>
             <button
@@ -102,6 +137,17 @@ export const Topbar = ({ onOpenSidebar }) => {
           </div>
         </div>
       </div>
+
+      <NotificationPanel
+        open={notificationsOpen}
+        loading={loadingNotifications}
+        notifications={notifications}
+        error={notificationError}
+        onClose={() => setNotificationsOpen(false)}
+        onMarkRead={markAsRead}
+        onMarkAllRead={markAllRead}
+        onDelete={deleteNotification}
+      />
     </header>
   );
 };

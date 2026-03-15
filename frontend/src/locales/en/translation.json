@@ -334,5 +334,12 @@
     "toImprove": "To improve:",
     "backDashboard": "Back to Dashboard",
     "takeAnother": "Take Another Interview"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Latest updates from your interview workspace",
+    "loading": "Loading notifications...",
+    "empty": "No notifications yet",
+    "markAllRead": "Mark all as read"
   }
 }

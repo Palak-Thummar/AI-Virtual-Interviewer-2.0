@@ -24,6 +24,7 @@ async def generate_interview_questions(
     job_description: str,
     num_questions: int = 5,
     programming_language: str | None = None,
+    company_style: str | None = None,
 ) -> List[str]:
     """
     Generate personalized interview questions.
@@ -46,6 +47,7 @@ async def generate_interview_questions(
     
     programming_context = programming_language.strip() if programming_language else ""
     language_line = f"PROGRAMMING LANGUAGE: {programming_context}\n" if programming_context else ""
+    company_line = f"COMPANY STYLE: {company_style}\n" if company_style else ""
 
     prompt = f"""You are a senior technical interviewer with 20+ years of experience.
 
@@ -53,7 +55,7 @@ Generate {num_questions} personalized technical interview questions based on:
 
 JOB ROLE: {job_role}
 DOMAIN: {domain}
-{language_line}CANDIDATE RESUME:
+{company_line}{language_line}CANDIDATE RESUME:
 {resume_text[:1500]}
 
 JOB DESCRIPTION:

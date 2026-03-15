@@ -72,3 +72,23 @@ async def list_interviews(current_user_id: str = Depends(get_current_user)):
         )
 
     return response
+
+
+@router.get("/{interview_id}/replay")
+async def replay_interview(interview_id: str, current_user_id: str = Depends(get_current_user)):
+    interviews_collection = get_collection("interviews")
+    interview = interviews_collection.find_one(
+        {"_id": ObjectId(interview_id), "user_id": ObjectId(current_user_id), "status": "completed"}
+    )
+    if not interview:
+        return {"id": interview_id, "role": "", "questions": [], "answers": []}
+
+    return {
+        "id": str(interview.get("_id")),
+        "role": interview.get("role", ""),
+        "domain": interview.get("domain", ""),
+        "questions": interview.get("questions", []),
+        "answers": interview.get("answers", []),
+        "score": interview.get("score", interview.get("total_score", 0)),
+        "completed_at": interview.get("completed_at"),
+    }

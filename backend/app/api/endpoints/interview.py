@@ -21,11 +21,14 @@ from app.services.question_generator import generate_interview_questions
 from app.services.jd_resume_analyzer import analyze_resume_against_jd
 from app.services.interview_evaluator import evaluate_answer, evaluate_interview_session
 from app.services.career_intelligence import rebuild_user_intelligence
+from app.services.notification_service import create_notification
+from app.services.judge0_service import evaluate_code_with_tests
 from app.core.database import get_collection
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
 
 SUPPORTED_PROGRAMMING_LANGUAGES = {"Python", "Java", "C++", "JavaScript", "Go"}
+SUPPORTED_INTERVIEW_TYPES = {"general", "coding", "voice", "company"}
 
 
 def _default_jd_analysis(error_message: str = "") -> dict:
@@ -133,12 +136,23 @@ def _normalize_programming_language(programming_language: str | None) -> str | N
     return resolved
 
 
+def _normalize_interview_type(interview_type: str | None) -> str:
+    normalized = (interview_type or "general").strip().lower()
+    if normalized not in SUPPORTED_INTERVIEW_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported interview type. Supported values: {', '.join(sorted(SUPPORTED_INTERVIEW_TYPES))}"
+        )
+    return normalized
+
+
 def _serialize_interview(interview: dict) -> dict:
     return {
         "id": str(interview.get("_id")),
         "user_id": str(interview.get("user_id")) if interview.get("user_id") else None,
         "role": interview.get("role") or interview.get("job_role") or "",
         "type": interview.get("type", "general"),
+        "interview_type": interview.get("interview_type", "general"),
         "status": interview.get("status", "pending"),
         "questions": interview.get("questions", []),
         "answers": interview.get("answers", []),
@@ -150,6 +164,7 @@ def _serialize_interview(interview: dict) -> dict:
         "skill_scores": interview.get("skill_scores", {}),
         "domain": interview.get("domain", ""),
         "programming_language": interview.get("programming_language"),
+        "interview_type": interview.get("interview_type", "general"),
         "company": interview.get("company"),
         "updated_at": interview.get("updated_at"),
         "resume_id": str(interview.get("resume_id")) if interview.get("resume_id") else None,
@@ -183,6 +198,9 @@ class QuestionProgressSubmission(BaseModel):
     question_id: int = Field(..., ge=0)
     answer: Optional[str] = ""
     skipped: bool = False
+    answer_type: str = Field(default="text", pattern="^(text|code|voice)$")
+    language: Optional[str] = None
+    audio_url: Optional[str] = None
 
 
 class InterviewSubmitRequest(BaseModel):
@@ -195,6 +213,7 @@ async def create_interview(
     current_user_id: str = Depends(get_current_user)
 ):
     programming_language = _normalize_programming_language(getattr(setup, "programming_language", None))
+    interview_type = _normalize_interview_type(getattr(setup, "interview_type", "general"))
     
     # Verify resume exists
     resumes_collection = get_collection("resumes")
@@ -238,6 +257,7 @@ async def create_interview(
         "user_id": ObjectId(current_user_id),
         "role": setup.job_role,
         "type": "general",
+        "interview_type": interview_type,
         "domain": setup.domain,
         "programming_language": programming_language,
         "job_description": setup.job_description,
@@ -264,6 +284,7 @@ async def create_interview(
         num_questions=num_questions,
         questions=questions,
         programming_language=programming_language,
+        interview_type=interview_doc.get("interview_type", "general"),
     )
 
 
@@ -306,7 +327,8 @@ async def generate_company_interview(
             f"Generate {normalized_difficulty} interview questions for {normalized_company} "
             f"for the role {normalized_role}. Include company-style expectations and practical scenarios."
         ),
-        num_questions=question_count
+        num_questions=question_count,
+        company_style=normalized_company,
     )
 
     question_objects: List[dict] = []
@@ -323,6 +345,7 @@ async def generate_company_interview(
         "user_id": ObjectId(current_user_id),
         "role": normalized_role,
         "type": "company",
+        "interview_type": "company",
         "domain": inferred_domain,
         "company": normalized_company,
         "difficulty": normalized_difficulty,
@@ -400,6 +423,25 @@ async def submit_answer(
             detail="Question order mismatch"
         )
 
+    # Idempotency: if this question was already answered (e.g. on a client retry),
+    # return the stored evaluation rather than re-evaluating and pushing a duplicate record.
+    existing_answers = interview.get("answers", [])
+    for stored_answer in existing_answers:
+        if stored_answer.get("question_id") == answer_data.question_id:
+            return AnswerEvaluationResponse(
+                question_id=stored_answer["question_id"],
+                score=stored_answer.get("score", 0),
+                feedback=stored_answer.get("feedback", ""),
+                strengths=stored_answer.get("strengths", []),
+                weaknesses=stored_answer.get("weaknesses", []),
+                improvements=stored_answer.get("improvements", []),
+                improvement_tips=stored_answer.get("improvement_tips", []),
+                ideal_answer=stored_answer.get("ideal_answer", ""),
+                runtime_ms=stored_answer.get("runtime_ms"),
+                test_case_success=stored_answer.get("test_case_success"),
+            )
+
+
     if answer_data.skipped:
         next_index = min(current_question_index + 1, len(questions))
         interviews_collection.update_one(
@@ -427,33 +469,71 @@ async def submit_answer(
             detail="Answer cannot be empty unless skipped"
         )
 
+    is_coding_answer = answer_data.answer_type == "code" or interview.get("interview_type") == "coding"
+
     # Evaluate answer
-    try:
-        evaluation = await evaluate_answer(
-            question=question,
-            answer=answer_text,
-            job_context=interview.get("role", "")
+    if is_coding_answer:
+        tests = interview.get("coding_tests") or [
+            {"input": "1 2", "output": "3"},
+            {"input": "10 5", "output": "15"},
+        ]
+        coding_eval = await evaluate_code_with_tests(
+            code=answer_text,
+            language=answer_data.language or interview.get("programming_language") or "python",
+            tests=tests,
         )
-    except Exception as e:
         evaluation = {
-            "score": 50.0,
-            "feedback": "Unable to evaluate at this time",
-            "strengths": [],
-            "improvements": [],
-            "technical_accuracy": 50,
-            "communication": 50,
-            "completeness": 50
+            "score": coding_eval.get("score", 0),
+            "feedback": "Coding evaluation completed using runtime test execution.",
+            "strengths": ["Code runs against submitted test cases"] if coding_eval.get("passed") else ["Attempt submitted and executed"],
+            "weaknesses": [] if coding_eval.get("passed") else ["Some test cases failed"],
+            "improvements": ["Handle edge cases and optimize time complexity"],
+            "improvement_tips": ["Add input validation and test against corner cases."],
+            "ideal_answer": "A complete solution should pass all test cases and explain complexity trade-offs.",
+            "runtime_ms": coding_eval.get("runtime_ms"),
+            "test_case_success": coding_eval.get("score", 0),
+            "test_results": coding_eval.get("test_results", []),
         }
+    else:
+        try:
+            evaluation = await evaluate_answer(
+                question=question,
+                answer=answer_text,
+                job_context=interview.get("role", "")
+            )
+        except Exception:
+            evaluation = {
+                "score": 50.0,
+                "feedback": "Unable to evaluate at this time",
+                "strengths": [],
+                "weaknesses": [],
+                "improvements": [],
+                "improvement_tips": [],
+                "ideal_answer": "",
+                "technical_accuracy": 50,
+                "communication": 50,
+                "completeness": 50
+            }
     
     # Store answer
     answer_record = {
         "question_id": answer_data.question_id,
         "question": question,
         "answer": answer_text,
+        "answer_text": answer_text,
+        "answer_type": answer_data.answer_type,
+        "language": answer_data.language,
+        "audio_url": answer_data.audio_url,
         "score": evaluation.get("score", 0),
         "feedback": evaluation.get("feedback", ""),
         "strengths": evaluation.get("strengths", []),
-        "improvements": evaluation.get("improvements", [])
+        "weaknesses": evaluation.get("weaknesses", []),
+        "improvements": evaluation.get("improvements", []),
+        "improvement_tips": evaluation.get("improvement_tips", []),
+        "ideal_answer": evaluation.get("ideal_answer", ""),
+        "runtime_ms": evaluation.get("runtime_ms"),
+        "test_case_success": evaluation.get("test_case_success"),
+        "test_results": evaluation.get("test_results", []),
     }
 
     next_index = min(current_question_index + 1, len(questions))
@@ -474,7 +554,12 @@ async def submit_answer(
         score=evaluation.get("score", 0),
         feedback=evaluation.get("feedback", ""),
         strengths=evaluation.get("strengths", []),
-        improvements=evaluation.get("improvements", [])
+        weaknesses=evaluation.get("weaknesses", []),
+        improvements=evaluation.get("improvements", []),
+        improvement_tips=evaluation.get("improvement_tips", []),
+        ideal_answer=evaluation.get("ideal_answer", ""),
+        runtime_ms=evaluation.get("runtime_ms"),
+        test_case_success=evaluation.get("test_case_success"),
     )
 
 
@@ -619,6 +704,18 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     )
 
     intelligence = rebuild_user_intelligence(current_user_id)
+
+    create_notification(
+        user_id=current_user_id,
+        notification_type="INTERVIEW_COMPLETED",
+        title="Interview Completed",
+        message="Your interview results are ready.",
+        metadata={
+            "interview_id": interview_id,
+            "score": round(float(overall_score or 0), 2),
+            "role": interview.get("role", ""),
+        },
+    )
 
     question_scores = [
         AnswerEvaluationResponse(

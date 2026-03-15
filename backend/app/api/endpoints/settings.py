@@ -16,6 +16,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.api.dependencies import get_current_user
 from app.core.database import get_collection
 from app.core.security import hash_password, verify_password
+from app.services.notification_service import create_notification
 from app.services.resume_parser import clean_text, extract_resume_text
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -349,6 +350,14 @@ async def upload_settings_resume(
     resumes_collection.update_one({"user_id": user_id, "is_settings_resume": True}, {"$set": doc}, upsert=True)
     saved = resumes_collection.find_one({"user_id": user_id, "is_settings_resume": True})
 
+    create_notification(
+        user_id=current_user_id,
+        notification_type="RESUME_ANALYSIS",
+        title="Resume Uploaded",
+        message="Your resume was uploaded and parsed successfully.",
+        metadata={"resume_id": str(saved.get("_id")) if saved else None, "source": "settings"},
+    )
+
     return {
         "resume_id": str(saved.get("_id")) if saved else None,
         "file_name": doc["file_name"],
@@ -389,6 +398,7 @@ async def export_user_data(current_user_id: str = Depends(get_current_user)):
     intelligence_collection = get_collection("career_intelligence")
     preferences_collection = get_collection("user_preferences")
     notifications_collection = get_collection("user_notifications")
+    app_notifications_collection = get_collection("notifications")
     resumes_collection = get_collection("resumes")
 
     user = users_collection.find_one({"_id": user_id})
@@ -396,6 +406,7 @@ async def export_user_data(current_user_id: str = Depends(get_current_user)):
     intelligence = intelligence_collection.find_one({"user_id": user_id})
     preferences = preferences_collection.find_one({"user_id": user_id})
     notifications = notifications_collection.find_one({"user_id": user_id})
+    app_notifications = list(app_notifications_collection.find({"user_id": user_id}, sort=[("created_at", -1)]))
     resume = resumes_collection.find_one({"user_id": user_id, "is_settings_resume": True})
 
     def serialize_document(doc):
@@ -414,7 +425,8 @@ async def export_user_data(current_user_id: str = Depends(get_current_user)):
         "interviews": [serialize_document(item) for item in interviews],
         "career_intelligence": serialize_document(intelligence),
         "preferences": serialize_document(preferences),
-        "notifications": serialize_document(notifications),
+        "notification_preferences": serialize_document(notifications),
+        "notifications": [serialize_document(item) for item in app_notifications],
         "resume": serialize_document(resume),
     }
 
@@ -428,6 +440,7 @@ async def delete_account(current_user_id: str = Depends(get_current_user)):
     intelligence_collection = get_collection("career_intelligence")
     preferences_collection = get_collection("user_preferences")
     notifications_collection = get_collection("user_notifications")
+    app_notifications_collection = get_collection("notifications")
     resumes_collection = get_collection("resumes")
 
     users_collection.delete_one({"_id": user_id})
@@ -435,6 +448,7 @@ async def delete_account(current_user_id: str = Depends(get_current_user)):
     intelligence_collection.delete_many({"user_id": user_id})
     preferences_collection.delete_many({"user_id": user_id})
     notifications_collection.delete_many({"user_id": user_id})
+    app_notifications_collection.delete_many({"user_id": user_id})
     resumes_collection.delete_many({"user_id": user_id})
 
     return {"message": "Account deleted permanently"}

@@ -62,14 +62,16 @@ export const DashboardPage = () => {
   const kpis = useMemo(() => {
     const total = Number(summary?.total_interviews || 0);
     const avg = Number(summary?.average_score || 0);
-    const readiness = Number(summary?.role_readiness || 0);
+    const readiness = Number(summary?.job_readiness_index ?? summary?.role_readiness ?? 0);
     const strongest = summary?.strongest_skill || '-';
+    const streak = Number(summary?.daily_streak || 0);
 
     return [
       { label: t('dashboard.kpis.totalInterviews'), value: total, icon: BriefcaseBusiness },
       { label: t('dashboard.kpis.averageScore'), value: `${avg}%`, icon: Gauge },
-      { label: t('dashboard.kpis.roleReadiness'), value: `${readiness}%`, icon: Trophy },
-      { label: t('dashboard.kpis.strongestSkill'), value: strongest, icon: BrainCircuit }
+      { label: 'Job Readiness Score', value: `${readiness}%`, icon: Trophy },
+      { label: t('dashboard.kpis.strongestSkill'), value: strongest, icon: BrainCircuit },
+      { label: 'Daily Practice Streak', value: `${streak} day(s)`, icon: Sparkles }
     ];
   }, [summary, t]);
 
@@ -166,6 +168,17 @@ export const DashboardPage = () => {
           );
         })}
       </section>
+
+      {(summary?.achievements || []).length ? (
+        <section className={styles.tableCard}>
+          <h3 className={styles.sectionTitle}>Achievements</h3>
+          <div className={styles.heroActions}>
+            {(summary?.achievements || []).map((badge) => (
+              <span key={badge.key} className={styles.statusBadge}>{badge.title}</span>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {!hasCompleted ? (
         <section className={styles.tableCard}>

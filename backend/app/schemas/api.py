@@ -28,7 +28,9 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     created_at: datetime
-    
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
+
     class Config:
         from_attributes = True
 
@@ -71,6 +73,7 @@ class InterviewSetup(BaseModel):
     resume_id: str
     num_questions: Optional[int] = Field(default=None, ge=1, le=20)
     programming_language: Optional[str] = Field(default=None, max_length=30)
+    interview_type: Optional[str] = Field(default="general", max_length=20)
 
 
 class InterviewCreateResponse(BaseModel):
@@ -81,6 +84,7 @@ class InterviewCreateResponse(BaseModel):
     num_questions: int
     questions: List[str]
     programming_language: Optional[str] = None
+    interview_type: Optional[str] = "general"
 
 
 # ============= INTERVIEW SESSION SCHEMAS =============
@@ -97,7 +101,12 @@ class AnswerEvaluationResponse(BaseModel):
     score: float
     feedback: str
     strengths: List[str]
+    weaknesses: List[str] = []
     improvements: List[str]
+    improvement_tips: List[str] = []
+    ideal_answer: str = ""
+    runtime_ms: Optional[float] = None
+    test_case_success: Optional[float] = None
 
 
 # ============= RESULTS AND ANALYTICS SCHEMAS =============

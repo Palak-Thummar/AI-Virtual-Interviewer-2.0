@@ -9,7 +9,12 @@ import {
   CartesianGrid,
   Tooltip,
   LineChart,
-  Line
+  Line,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar
 } from 'recharts';
 import { Brain, Lightbulb, TrendingUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -104,6 +109,9 @@ export const CareerIntelligencePage = () => {
       average_score: Number(item?.average_score || 0)
     }));
   }, [summary]);
+  const difficultyTrend = useMemo(() => summary?.difficulty_trend || [], [summary]);
+  const radarData = useMemo(() => summary?.weak_skill_radar || [], [summary]);
+  const skillProgression = useMemo(() => summary?.skill_progression || [], [summary]);
 
   const readiness = Number(summary?.role_readiness || 0);
   const readinessPct = Math.max(0, Math.min(100, readiness));
@@ -273,6 +281,56 @@ export const CareerIntelligencePage = () => {
           </ResponsiveContainer>
         </div>
       </article>
+
+      <section className={styles.twoColumn}>
+        <article className={styles.card}>
+          <h2>Skill Progression</h2>
+          <div className={styles.chartBox}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={skillProgression}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="attempt" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Line type="monotone" dataKey="DSA" stroke="#2563eb" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="System Design" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Behavioral" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Communication" stroke="#6366f1" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className={styles.card}>
+          <h2>Interview Difficulty Trend</h2>
+          <div className={styles.chartBox}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={difficultyTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="attempt" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Line type="monotone" dataKey="score" stroke="#14b8a6" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className={styles.card}>
+          <h2>Weak Skill Radar</h2>
+          <div className={styles.chartBox}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="skill" />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.35} />
+                <Tooltip />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+      </section>
 
       <article className={styles.card}>
         <h2>{t('career.recommendations')}</h2>

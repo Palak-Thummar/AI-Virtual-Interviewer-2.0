@@ -31,12 +31,29 @@ class Settings(BaseSettings):
     # JWT
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+
+    # Rate limiting (requests per minute per IP)
+    RATE_LIMIT_PER_MINUTE: int = 60
+    AUTH_RATE_LIMIT_PER_MINUTE: int = 10
     
     # OpenRouter API
     OPENROUTER_API_KEY: str = ""
     # OpenRouter Model name (configurable)
     OPENROUTER_MODEL_NAME: str = "nvidia/nemotron-3-nano-30b-a3b:free"
+    COACH_MODEL_NAME: str = "nvidia/nemotron-3-nano-30b-a3b:free"
+
+    # Judge0 execution API
+    JUDGE0_API_URL: str = "https://judge0-ce.p.rapidapi.com"
+    JUDGE0_API_KEY: str = ""
+
+    # Optional SMTP for notification email delivery
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = True
     
     # File Upload
     UPLOAD_DIR: str = "./uploads"

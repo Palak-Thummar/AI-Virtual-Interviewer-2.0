@@ -6,6 +6,7 @@ Provides coding problems and submission evaluation responses.
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import List, Literal
+from app.services.judge0_service import evaluate_code_with_tests
 
 router = APIRouter(prefix="/api/coding", tags=["coding"])
 
@@ -40,6 +41,7 @@ class CodingSubmitResponse(BaseModel):
     passed: bool
     test_results: List[CodingTestResult]
     execution_time: str
+    score: float
 
 
 PROBLEMS: List[CodingProblem] = [
@@ -90,30 +92,42 @@ async def get_problems():
 
 @router.post("/submit", response_model=CodingSubmitResponse)
 async def submit_code(payload: CodingSubmitRequest):
-    """Mock submission evaluator for coding practice."""
+    """Evaluate submission with Judge0 API and return deterministic test results."""
     try:
-        has_code = bool(payload.code.strip())
-        likely_pass = has_code and ("solve" in payload.code or "def" in payload.code or "function" in payload.code)
-
         test_results = [
             {
                 "input": "nums = [2,7,11,15], target = 9",
                 "expected": "[0,1]",
-                "actual": "[0,1]" if likely_pass else "[]",
-                "status": "passed" if likely_pass else "failed",
+                "output": "[0,1]",
             },
             {
                 "input": "nums = [3,2,4], target = 6",
                 "expected": "[1,2]",
-                "actual": "[1,2]" if likely_pass else "[]",
-                "status": "passed" if likely_pass else "failed",
+                "output": "[1,2]",
             },
         ]
 
+        evaluation = await evaluate_code_with_tests(
+            code=payload.code,
+            language=payload.language,
+            tests=test_results,
+        )
+
+        normalized_tests = [
+            {
+                "input": item.get("input", ""),
+                "expected": item.get("expected", ""),
+                "actual": item.get("actual", ""),
+                "status": item.get("status", "failed"),
+            }
+            for item in evaluation.get("test_results", [])
+        ]
+
         return {
-            "passed": all(item["status"] == "passed" for item in test_results),
-            "test_results": test_results,
-            "execution_time": "0.12s",
+            "passed": bool(evaluation.get("passed", False)),
+            "test_results": normalized_tests,
+            "execution_time": f"{round(float(evaluation.get('runtime_ms', 0)) / 1000, 3)}s",
+            "score": float(evaluation.get("score", 0)),
         }
     except Exception as exc:
         raise HTTPException(

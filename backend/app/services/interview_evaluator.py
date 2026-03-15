@@ -56,7 +56,7 @@ JOB CONTEXT: {job_context}
 Evaluate this answer fairly. For even short answers or single words, provide a realistic score (not necessarily high).
 
 Return ONLY this JSON format (no markdown, no extra text, just raw JSON):
-{{"score": 45, "feedback": "example", "strengths": ["example"], "improvements": ["example"], "technical_accuracy": 45, "communication": 45, "completeness": 45, "reasoning": "example"}}
+{{"score": 45, "feedback": "example", "strengths": ["example"], "weaknesses": ["example"], "improvements": ["example"], "improvement_tips": ["example"], "ideal_answer": "example", "technical_accuracy": 45, "communication": 45, "completeness": 45, "reasoning": "example"}}
 
 CRITICAL: Your response must start with {{ and end with }} with no other text before or after."""
 
@@ -262,7 +262,10 @@ def _validate_evaluation_response(data: dict) -> dict:
         "score": 0.0,
         "feedback": "Unable to evaluate at this time.",
         "strengths": [],
+        "weaknesses": [],
         "improvements": [],
+        "improvement_tips": [],
+        "ideal_answer": "",
         "technical_accuracy": 0,
         "communication": 0,
         "completeness": 0
@@ -274,7 +277,10 @@ def _validate_evaluation_response(data: dict) -> dict:
     result["score"] = max(0, min(100, float(result.get("score", 0))))
     result["feedback"] = str(result.get("feedback", ""))[:500]
     result["strengths"] = list(result.get("strengths", []))[:5]
+    result["weaknesses"] = list(result.get("weaknesses", []))[:5]
     result["improvements"] = list(result.get("improvements", []))[:5]
+    result["improvement_tips"] = list(result.get("improvement_tips", result.get("improvements", [])))[:6]
+    result["ideal_answer"] = str(result.get("ideal_answer", ""))[:1500]
     result["technical_accuracy"] = max(0, min(100, int(result.get("technical_accuracy", 0))))
     result["communication"] = max(0, min(100, int(result.get("communication", 0))))
     result["completeness"] = max(0, min(100, int(result.get("completeness", 0))))
@@ -288,7 +294,10 @@ def _get_default_evaluation() -> dict:
         "score": 50.0,
         "feedback": "Answer requires evaluation.",
         "strengths": ["Clear communication"],
+        "weaknesses": ["Limited technical depth"],
         "improvements": ["Provide more specific examples"],
+        "improvement_tips": ["Use concrete examples and mention trade-offs."],
+        "ideal_answer": "A strong answer should explain the approach, trade-offs, and practical implementation details.",
         "technical_accuracy": 50,
         "communication": 50,
         "completeness": 50

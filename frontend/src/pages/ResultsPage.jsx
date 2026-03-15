@@ -269,6 +269,12 @@ export const ResultsPage = () => {
         <Button variant="secondary" onClick={() => navigate('/dashboard')}>
           {t('results.backDashboard')}
         </Button>
+        <Button variant="secondary" onClick={() => navigate(`/interview/${interviewId}/replay`)}>
+          Review Interview
+        </Button>
+        <Button variant="secondary" onClick={() => navigate('/resume-rewriter')}>
+          Optimize Resume
+        </Button>
         <Button variant="primary" onClick={() => navigate('/setup')}>
           {t('results.takeAnother')}
         </Button>

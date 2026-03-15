@@ -155,11 +155,27 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
 };
 
 // Alert Component
-export const Alert = ({ variant = 'info', children, onClose }) => (
-  <div className={`${styles.alert} ${styles[`alert-${variant}`]}`}>
-    <div>{children}</div>
-    {onClose && (
-      <button onClick={onClose} className={styles.alertClose}>×</button>
-    )}
+export const Alert = ({ variant, type, children, message, onClose, onDismiss }) => {
+  const resolvedVariant = variant || type || 'info';
+  const content = children || message;
+  if (!content) return null;
+  const handleClose = onClose || onDismiss;
+  return (
+    <div className={`${styles.alert} ${styles[`alert-${resolvedVariant}`]}`}>
+      <div>{content}</div>
+      {handleClose && (
+        <button onClick={handleClose} className={styles.alertClose}>×</button>
+      )}
+    </div>
+  );
+};
+
+// Empty State Component
+export const EmptyState = ({ icon = '📭', title, description, action }) => (
+  <div className={styles.emptyState}>
+    <div className={styles.emptyIcon}>{icon}</div>
+    {title && <h3 className={styles.emptyTitle}>{title}</h3>}
+    {description && <p className={styles.emptyDescription}>{description}</p>}
+    {action && <div className={styles.emptyAction}>{action}</div>}
   </div>
 );

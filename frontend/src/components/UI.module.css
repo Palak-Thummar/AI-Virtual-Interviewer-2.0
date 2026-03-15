@@ -312,3 +312,39 @@
   .modal-md { width: 95%; max-width: 90vw; }
   .modal-lg { width: 95%; max-width: 90vw; }
 }
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.emptyIcon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.emptyTitle {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+
+.emptyDescription {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  max-width: 320px;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.emptyAction {
+  margin-top: 0.5rem;
+}

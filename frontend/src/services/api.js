@@ -103,7 +103,13 @@ export const authAPI = {
     }),
   
   refresh: () =>
-    api.post('/auth/refresh')
+    api.post('/auth/refresh'),
+
+  completeOnboarding: () =>
+    api.patch('/auth/onboarding'),
+
+  getOnboardingStatus: () =>
+    api.get('/auth/onboarding-status')
 };
 
 // ============= RESUME ENDPOINTS =============
@@ -186,6 +192,21 @@ export const analyticsAPI = {
     api.get('/interviews')
 };
 
+export const practiceAPI = {
+  getCenter: () =>
+    api.get('/practice-center')
+};
+
+export const coachAPI = {
+  chat: (payload) =>
+    api.post('/coach/chat', payload)
+};
+
+export const interviewHistoryAPI = {
+  replay: (interviewId) =>
+    api.get(`/interviews/${interviewId}/replay`)
+};
+
 // ============= ANSWER LAB ENDPOINTS =============
 export const answerLabAPI = {
   analyze: (payload) =>
@@ -243,6 +264,24 @@ export const settingsAPI = {
 
   deleteAccount: () =>
     api.delete('/settings/account')
+};
+
+// ============= NOTIFICATIONS ENDPOINTS =============
+export const notificationsAPI = {
+  list: () =>
+    api.get('/notifications'),
+
+  unreadCount: () =>
+    api.get('/notifications/unread-count'),
+
+  markRead: (notificationId) =>
+    api.put(`/notifications/${notificationId}/read`),
+
+  markAllRead: () =>
+    api.put('/notifications/read-all'),
+
+  delete: (notificationId) =>
+    api.delete(`/notifications/${notificationId}`)
 };
 
 export { API_BASE, SERVER_BASE, api };

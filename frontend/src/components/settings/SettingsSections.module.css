@@ -59,6 +59,29 @@
   gap: 8px;
 }
 
+.questionTypesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.questionTypeItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  min-height: 40px;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #6366f1;
+}
+
 .skillWrap {
   display: flex;
   flex-wrap: wrap;
@@ -171,6 +194,10 @@
 
 @media (max-width: 780px) {
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .questionTypesGrid {
     grid-template-columns: 1fr;
   }
 

@@ -6,8 +6,8 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { resumeAPI, authAPI, parseApiError } from '../services/api';
-import { Button, Input, Select, Alert, Spinner } from '../components/UI';
+import { resumeAPI, authAPI, settingsAPI, parseApiError } from '../services/api';
+import { Button, Select, Alert, Spinner } from '../components/UI';
 import styles from './Onboarding.module.css';
 
 const STEPS = [
@@ -39,7 +39,7 @@ const EXPERIENCE_OPTIONS = [
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
 
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
@@ -81,6 +81,20 @@ export const OnboardingPage = () => {
     }
   }, []);
 
+  const completeOnboardingAndNavigate = useCallback(async (targetPath) => {
+    setLoading(true);
+    setError('');
+    try {
+      await authAPI.completeOnboarding();
+      if (refreshUser) await refreshUser();
+      navigate(targetPath, { replace: true });
+    } catch (err) {
+      setError(parseApiError(err, 'Failed to complete onboarding. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate, refreshUser]);
+
   // ── Step 2: save role ──
   const handleSaveRole = useCallback(async () => {
     if (!targetRole) {
@@ -90,39 +104,27 @@ export const OnboardingPage = () => {
     setError('');
     setLoading(true);
     try {
-      // Update profile with the chosen role
-      const { settingsAPI } = await import('../services/api');
       await settingsAPI.updateProfile({
-        full_name: '',   // backend ignores empty; it won't overwrite
+        full_name: (user?.name || user?.full_name || 'CareerIQ User').trim(),
         primary_role: targetRole,
         experience_level: experienceLevel
       });
       setStep(3);
     } catch (err) {
       setError(parseApiError(err, 'Failed to save role. You can update this later in Settings.'));
-      setStep(3); // non-blocking
     } finally {
       setLoading(false);
     }
-  }, [targetRole, experienceLevel]);
+  }, [targetRole, experienceLevel, user]);
 
   // ── Step 3: complete onboarding ──
   const handleFinish = useCallback(async () => {
-    setLoading(true);
-    try {
-      await authAPI.completeOnboarding();
-      if (refreshUser) await refreshUser();
-      navigate('/setup', { replace: true });
-    } catch {
-      navigate('/setup', { replace: true });
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate, refreshUser]);
+    completeOnboardingAndNavigate('/setup');
+  }, [completeOnboardingAndNavigate]);
 
   const handleSkip = useCallback(() => {
-    navigate('/dashboard', { replace: true });
-  }, [navigate]);
+    completeOnboardingAndNavigate('/dashboard');
+  }, [completeOnboardingAndNavigate]);
 
   const current = STEPS[step - 1];
 

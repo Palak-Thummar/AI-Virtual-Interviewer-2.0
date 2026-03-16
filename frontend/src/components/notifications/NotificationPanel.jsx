@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCheck } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
@@ -16,10 +16,23 @@ export const NotificationPanel = ({
 }) => {
   const { t } = useTranslation();
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
   return (
     <>
-      <div className={`${styles.overlay} ${open ? styles.overlayVisible : ''}`} onClick={onClose} />
-      <aside className={`${styles.panel} ${open ? styles.panelOpen : ''}`} aria-hidden={!open}>
+      <div className={`${styles.overlay} ${open ? styles.overlayVisible : ''}`} onMouseDown={onClose} />
+      <aside
+        className={`${styles.panel} ${open ? styles.panelOpen : ''}`}
+        aria-hidden={!open}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <header className={styles.header}>
           <div>
             <h3 className={styles.heading}>{t('notifications.title')}</h3>

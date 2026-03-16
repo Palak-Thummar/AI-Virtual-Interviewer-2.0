@@ -24,8 +24,15 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 8px 10px;
+}
+
+.brandLogo {
+  width: 150px;
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 .brandBadge {

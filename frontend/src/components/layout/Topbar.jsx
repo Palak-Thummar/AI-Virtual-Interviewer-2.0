@@ -65,7 +65,15 @@ export const Topbar = ({ onOpenSidebar }) => {
     return () => clearInterval(timer);
   }, [fetchUnreadCount]);
 
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [pathname]);
+
   const handleOpenNotifications = async () => {
+    if (notificationsOpen) {
+      setNotificationsOpen(false);
+      return;
+    }
     setNotificationsOpen(true);
     await fetchNotifications();
   };

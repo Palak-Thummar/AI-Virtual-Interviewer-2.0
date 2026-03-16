@@ -3,7 +3,7 @@
 .header p { margin: 6px 0 0; color: #64748b; }
 .chatWrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; display: grid; gap: 10px; }
 .messages { display: grid; gap: 8px; max-height: 460px; overflow: auto; padding-right: 4px; }
-.bubble { border-radius: 12px; padding: 10px; line-height: 1.45; }
+.bubble { border-radius: 12px; padding: 10px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 .user { background: #dbeafe; justify-self: end; max-width: 85%; }
 .assistant { background: #f8fafc; border: 1px solid #e2e8f0; max-width: 90%; }
 .composer { display: grid; gap: 8px; }

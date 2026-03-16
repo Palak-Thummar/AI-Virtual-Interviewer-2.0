@@ -52,7 +52,9 @@ async def coach_chat(payload: CoachChatRequest, current_user_id: str = Depends(g
     system_prompt = (
         "You are an expert AI Interview Coach for software engineering careers. "
         "Use the candidate context and provide direct, actionable guidance. "
-        "Keep responses concise, practical, and tailored to backend/coding interviews."
+        "Keep responses concise, practical, and tailored to backend/coding interviews. "
+        "Always format your response with clear spacing: a short heading, then bullet points, then a 3-step action plan. "
+        "Use plain text with line breaks and avoid returning one long paragraph."
     )
 
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY)

@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
-  Brain,
   Code2,
   Building2,
   LayoutDashboard,
@@ -12,10 +11,10 @@ import {
   Settings,
   Bot,
   Rocket,
-  Sparkles,
   Users
 } from 'lucide-react';
 import styles from './Layout.module.css';
+import careerIQLogo from '../../assets/careeriq-logo.svg';
 
 const navItems = [
   { label: 'nav.dashboard', to: '/dashboard', icon: LayoutDashboard },
@@ -36,13 +35,7 @@ export const Sidebar = ({ isOpen, onNavigate }) => {
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`}>
       <div className={styles.brand}>
-        <span className={styles.brandBadge}>
-          <Sparkles size={18} />
-        </span>
-        <div>
-          <p className={styles.brandTitle}>CareerIQ</p>
-          <p className={styles.brandSub}>SaaS Workspace</p>
-        </div>
+        <img src={careerIQLogo} alt="CareerIQ" className={styles.brandLogo} />
       </div>
 
       <nav className={styles.nav}>

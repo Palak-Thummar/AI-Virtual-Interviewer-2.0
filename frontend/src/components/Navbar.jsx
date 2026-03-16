@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, User, LogOut, ChevronDown, Sparkles } from 'lucide-react';
+import { Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
+import careerIQLogo from '../assets/careeriq-logo.svg';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -40,10 +41,8 @@ export const Navbar = () => {
     >
       <div className="app-container flex h-16 items-center justify-between">
         <Link to="/dashboard" className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <span className="rounded-xl border border-indigo-200 bg-indigo-50 p-1.5 text-indigo-600">
-            <Sparkles className="h-4 w-4" />
-          </span>
-          <span>AI Interviewer</span>
+          <img src={careerIQLogo} alt="CareerIQ" className="h-8 w-auto rounded-md" />
+          <span>CareerIQ</span>
         </Link>
 
         {isAuthenticated ? (

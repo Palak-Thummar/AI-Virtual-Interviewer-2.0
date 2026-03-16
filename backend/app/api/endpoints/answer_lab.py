@@ -6,6 +6,7 @@ Provides AI-style coaching feedback for a single interview answer.
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import List, Literal
+import re
 
 router = APIRouter(prefix="/api/answer-lab", tags=["answer-lab"])
 
@@ -31,34 +32,57 @@ def _score_answer(question: str, answer: str, answer_type: str):
     text = answer.strip()
     word_count = len(text.split())
 
-    clarity_score = 5
-    if word_count >= 30:
+    lower_text = text.lower()
+    question_tokens = set(re.findall(r"[a-zA-Z]{4,}", question.lower()))
+    answer_tokens = set(re.findall(r"[a-zA-Z]{4,}", lower_text))
+    overlap_ratio = (len(question_tokens & answer_tokens) / len(question_tokens)) if question_tokens else 0
+
+    sentence_count = len([s for s in re.split(r"[.!?\n]+", text) if s.strip()])
+    bullet_like = sum(1 for line in text.splitlines() if line.strip().startswith(("-", "*", "1.", "2.", "3.")))
+    lexical_diversity = (len(answer_tokens) / max(1, word_count))
+
+    clarity_score = 4
+    if word_count >= 35:
         clarity_score += 1
-    if word_count >= 70:
+    if word_count >= 90:
         clarity_score += 1
-    if any(token in text.lower() for token in ["because", "therefore", "so that", "for example"]):
+    if overlap_ratio >= 0.25:
+        clarity_score += 1
+    if overlap_ratio >= 0.45:
+        clarity_score += 1
+    if lexical_diversity >= 0.35:
         clarity_score += 1
 
-    structure_score = 5
-    sentence_markers = ["first", "second", "finally", "then"]
-    if any(marker in text.lower() for marker in sentence_markers):
+    structure_score = 4
+    sentence_markers = ["first", "second", "finally", "then", "because", "therefore", "for example"]
+    if any(marker in lower_text for marker in sentence_markers):
         structure_score += 1
-    if len([s for s in text.replace("\n", ".").split(".") if s.strip()]) >= 3:
+    if sentence_count >= 3:
+        structure_score += 1
+    if sentence_count >= 5:
+        structure_score += 1
+    if bullet_like > 0:
         structure_score += 1
 
-    technical_depth_score = 5
+    technical_depth_score = 4
     tech_keywords = [
         "api", "database", "cache", "latency", "scalability", "testing",
         "architecture", "complexity", "security", "trade-off"
     ]
     if answer_type == "Technical":
-        hit_count = sum(1 for key in tech_keywords if key in text.lower())
+        hit_count = sum(1 for key in tech_keywords if key in lower_text)
         if hit_count >= 2:
             technical_depth_score += 1
         if hit_count >= 4:
             technical_depth_score += 1
+        if hit_count >= 6:
+            technical_depth_score += 1
+        if any(token in lower_text for token in ["trade-off", "complexity", "bottleneck", "edge case"]):
+            technical_depth_score += 1
     else:
-        technical_depth_score = 6
+        behavioral_keywords = ["situation", "task", "action", "result", "impact", "learned"]
+        hit_count = sum(1 for key in behavioral_keywords if key in lower_text)
+        technical_depth_score = 5 + min(4, hit_count)
 
     clarity_score = max(1, min(10, clarity_score))
     structure_score = max(1, min(10, structure_score))

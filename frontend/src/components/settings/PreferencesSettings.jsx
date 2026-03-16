@@ -89,13 +89,14 @@ export const PreferencesSettings = () => {
 
       <div className={styles.field}>
         <label>{t('settings.preferences.questionTypes')}</label>
-        <div className={styles.grid}>
+        <div className={styles.questionTypesGrid}>
           {allQuestionTypes.map((type) => (
-            <label key={type} className={styles.checkRow}>
+            <label key={type} className={styles.questionTypeItem}>
               <input
                 type="checkbox"
                 checked={form.question_types.includes(type)}
                 onChange={() => toggleType(type)}
+                className={styles.checkbox}
               />
               <span>{type.toUpperCase()}</span>
             </label>

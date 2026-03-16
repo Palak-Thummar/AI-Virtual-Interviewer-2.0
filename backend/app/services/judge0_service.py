@@ -12,11 +12,19 @@ from app.core.config import settings
 
 LANGUAGE_MAP = {
     "python": 71,
+    "py": 71,
     "javascript": 63,
+    "js": 63,
+    "typescript": 74,
+    "ts": 74,
     "java": 62,
     "cpp": 54,
     "c++": 54,
+    "c": 50,
     "go": 60,
+    "csharp": 51,
+    "c#": 51,
+    "rust": 73,
 }
 
 

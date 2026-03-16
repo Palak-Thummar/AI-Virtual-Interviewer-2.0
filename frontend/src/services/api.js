@@ -21,6 +21,11 @@ export const parseApiError = (error, fallback = 'Something went wrong.') => {
     return 'Network error. Please check your connection and try again.';
   }
 
+  const backendError = error.response?.data?.error;
+  if (typeof backendError === 'string' && backendError.trim()) {
+    return backendError;
+  }
+
   const detail = error.response?.data?.detail;
   if (typeof detail === 'string' && detail.trim()) {
     return detail;

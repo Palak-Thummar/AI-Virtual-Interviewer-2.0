@@ -33,7 +33,8 @@ def _normalize_language(language: str) -> str:
 
 
 def _headers() -> Dict[str, str]:
-    if not settings.JUDGE0_API_KEY:
+    api_url = (settings.JUDGE0_API_URL or "").lower()
+    if not settings.JUDGE0_API_KEY or "rapidapi" not in api_url:
         return {"Content-Type": "application/json"}
     return {
         "Content-Type": "application/json",
@@ -50,22 +51,24 @@ def _score_from_results(results: List[Dict]) -> float:
 
 
 def _fallback_eval(code: str, tests: List[Dict]) -> Dict:
-    success_hint = any(token in code for token in ["def", "return", "function", "=>"])
+    message = "Code execution service unavailable"
     results = []
     for test in tests:
         results.append(
             {
                 "input": test.get("input", ""),
                 "expected": test.get("output", ""),
-                "actual": test.get("output", "") if success_hint else "",
-                "status": "passed" if success_hint else "failed",
+                "actual": message,
+                "status": "failed",
             }
         )
     return {
         "test_results": results,
         "runtime_ms": 0,
-        "passed": all(item.get("status") == "passed" for item in results),
-        "score": _score_from_results(results),
+        "passed": False,
+        "score": 0.0,
+        "error_message": message,
+        "error": message,
     }
 
 
@@ -102,6 +105,9 @@ async def evaluate_code_with_tests(code: str, language: str, tests: List[Dict]) 
                         "actual": "",
                         "status": "failed",
                         "time": "0",
+                        "status_id": 0,
+                        "stderr": "No submission token returned by Judge0",
+                        "compile_output": "",
                     }
 
                 for _ in range(10):
@@ -116,13 +122,24 @@ async def evaluate_code_with_tests(code: str, language: str, tests: List[Dict]) 
                         await asyncio.sleep(0.7)
                         continue
                     stdout = (data.get("stdout") or "").strip()
+                    stderr = (data.get("stderr") or "").strip()
+                    compile_output = (data.get("compile_output") or "").strip()
                     expected = str(test.get("output", "")).strip()
+                    passed = bool(status_id == 3 and not stderr and not compile_output and stdout == expected)
+                    actual_value = stdout
+                    if compile_output:
+                        actual_value = f"Compilation Error: {compile_output}"
+                    elif stderr:
+                        actual_value = f"Runtime Error: {stderr}"
                     return {
                         "input": test.get("input", ""),
                         "expected": expected,
-                        "actual": stdout,
-                        "status": "passed" if stdout == expected else "failed",
+                        "actual": actual_value,
+                        "status": "passed" if passed else "failed",
                         "time": data.get("time") or "0",
+                        "status_id": status_id,
+                        "stderr": stderr,
+                        "compile_output": compile_output,
                     }
 
                 return {
@@ -131,16 +148,27 @@ async def evaluate_code_with_tests(code: str, language: str, tests: List[Dict]) 
                     "actual": "",
                     "status": "failed",
                     "time": "0",
+                    "status_id": 0,
+                    "stderr": "Timed out waiting for Judge0 result",
+                    "compile_output": "",
                 }
 
             resolved = await asyncio.gather(*[fetch_result(test, token) for test, token in submissions])
             runtime = max([float(item.get("time") or 0) for item in resolved] or [0])
             score = _score_from_results(resolved)
+            compile_errors = [item.get("compile_output") for item in resolved if item.get("compile_output")]
+            runtime_errors = [item.get("stderr") for item in resolved if item.get("stderr")]
+            error_message = ""
+            if compile_errors:
+                error_message = f"Compilation failed: {compile_errors[0]}"
+            elif runtime_errors:
+                error_message = f"Runtime failed: {runtime_errors[0]}"
             return {
                 "test_results": resolved,
                 "runtime_ms": round(runtime * 1000, 2),
-                "passed": all(item.get("status") == "passed" for item in resolved),
-                "score": score,
+                "passed": bool(all(item.get("status") == "passed" for item in resolved) and not error_message),
+                "score": score if not error_message else 0.0,
+                "error_message": error_message or None,
             }
     except Exception:
         return _fallback_eval(code, tests)

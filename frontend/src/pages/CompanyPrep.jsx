@@ -2,15 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Building2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { interviewAPI, settingsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import styles from './CompanyPrep.module.css';
 
 const COMPANIES = ['Amazon', 'Google', 'Microsoft', 'Meta', 'Netflix', 'Uber'];
 
-const STORAGE_KEY = 'company_prep_state_v1';
+const STORAGE_PREFIX = 'company_prep_state_v2';
 
-const loadState = () => {
+const loadState = (storageKey) => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -20,9 +21,11 @@ const loadState = () => {
 
 export const CompanyPrepPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const summaryRef = useRef(null);
+  const storageKey = `${STORAGE_PREFIX}_${user?.id || user?._id || 'anon'}`;
 
-  const persisted = loadState();
+  const persisted = loadState(storageKey);
 
   const [company, setCompany] = useState(persisted?.company || '');
   const [role, setRole] = useState(persisted?.role || '');
@@ -34,7 +37,7 @@ export const CompanyPrepPage = () => {
 
   useEffect(() => {
     localStorage.setItem(
-      STORAGE_KEY,
+      storageKey,
       JSON.stringify({
         company,
         role,
@@ -43,7 +46,7 @@ export const CompanyPrepPage = () => {
         summary
       })
     );
-  }, [company, role, difficulty, questionCount, summary]);
+  }, [company, role, difficulty, questionCount, summary, storageKey]);
 
   useEffect(() => {
     const loadDefaults = async () => {

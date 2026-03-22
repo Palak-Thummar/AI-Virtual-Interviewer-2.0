@@ -36,6 +36,7 @@ export const PracticeCenterPage = () => {
   const questions = data?.recommended_questions || [];
   const interviews = data?.practice_interviews || [];
   const badges = data?.achievements || [];
+  const empty = !areas.length && !topics.length && !questions.length && !interviews.length;
 
   return (
     <section className={styles.page}>
@@ -43,6 +44,13 @@ export const PracticeCenterPage = () => {
         <h1>Practice Center</h1>
         <p>Personalized recommendations based on your latest interview intelligence.</p>
       </header>
+
+      {empty ? (
+        <article className={styles.card}>
+          <h2>Start your first interview</h2>
+          <p>{data?.message || 'Start your first interview to get personalized recommendations'}</p>
+        </article>
+      ) : null}
 
       <div className={styles.grid}>
         <article className={styles.card}>

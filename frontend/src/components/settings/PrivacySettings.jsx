@@ -5,36 +5,13 @@ import styles from './SettingsSections.module.css';
 
 export const PrivacySettings = ({ onAccountDeleted }) => {
   const { t } = useTranslation();
-  const exportData = useSettingsStore((state) => state.exportData);
   const deleteAccount = useSettingsStore((state) => state.deleteAccount);
 
-  const [loadingExport, setLoadingExport] = useState(false);
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
-  const handleExport = async () => {
-    try {
-      setLoadingExport(true);
-      setMessage('');
-      setError('');
-      const data = await exportData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'my-account-data.json';
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setMessage(t('settings.privacy.downloaded'));
-    } catch (err) {
-      setError(err?.response?.data?.detail?.message || err?.response?.data?.detail || 'Failed to export data');
-    } finally {
-      setLoadingExport(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (confirmText !== 'DELETE') {
@@ -56,13 +33,10 @@ export const PrivacySettings = ({ onAccountDeleted }) => {
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.title}>{t('settings.privacy.title')}</h2>
-      <p className={styles.subtitle}>{t('settings.privacy.subtitle')}</p>
+      <h2 className={styles.title}>{t('settings.privacy.deleteAccount')}</h2>
+      <p className={styles.subtitle}>{t('settings.privacy.confirmText')}</p>
 
       <div className={styles.actions} style={{ justifyContent: 'flex-start' }}>
-        <button type="button" className={styles.secondaryButton} onClick={handleExport} disabled={loadingExport}>
-          {loadingExport ? t('settings.privacy.preparing') : t('settings.privacy.download')}
-        </button>
         <button type="button" className={styles.dangerButton} onClick={() => setShowModal(true)}>
           {t('settings.privacy.deleteAccount')}
         </button>

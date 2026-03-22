@@ -170,7 +170,10 @@ async def change_password(payload: ChangePasswordRequest, current_user_id: str =
 
     users_collection.update_one(
         {"_id": user["_id"]},
-        {"$set": {"password_hash": hash_password(payload.new_password), "updated_at": datetime.utcnow()}}
+        {
+            "$set": {"password_hash": hash_password(payload.new_password), "updated_at": datetime.utcnow()},
+            "$inc": {"token_version": 1},
+        }
     )
 
     return {"message": "Password updated successfully"}
@@ -370,6 +373,13 @@ async def upload_settings_resume(
 async def get_settings_resume(current_user_id: str = Depends(get_current_user)):
     resumes_collection = get_collection("resumes")
     resume = resumes_collection.find_one({"user_id": _user_object_id(current_user_id), "is_settings_resume": True})
+
+    if not resume:
+        # Fallback to the latest uploaded resume to keep settings in sync with interview upload flow.
+        resume = resumes_collection.find_one(
+            {"user_id": _user_object_id(current_user_id)},
+            sort=[("uploaded_at", -1), ("updated_at", -1)]
+        )
 
     if not resume:
         return {"resume_id": None, "file_name": None, "extracted_skills": [], "uploaded_at": None}

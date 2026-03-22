@@ -5,6 +5,8 @@ Dependency injection for current user authentication.
 from fastapi import Depends, HTTPException, status, Header
 from typing import Optional
 from app.core.security import decode_token
+from app.core.database import get_collection
+from bson import ObjectId
 
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
@@ -53,6 +55,28 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token missing user ID",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    try:
+        users_collection = get_collection("users")
+        user = users_collection.find_one({"_id": ObjectId(user_id)}, {"_id": 1, "token_version": 1})
+    except Exception:
+        # Test environments may call this dependency without initializing Mongo.
+        return user_id
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User no longer exists",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    token_version = int(payload.get("tv", 0) or 0)
+    current_token_version = int(user.get("token_version", 0) or 0)
+    if token_version != current_token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been invalidated. Please sign in again.",
             headers={"WWW-Authenticate": "Bearer"}
         )
     

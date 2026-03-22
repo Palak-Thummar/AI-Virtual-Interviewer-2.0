@@ -11,6 +11,19 @@ router = APIRouter(prefix="/api/practice-center", tags=["practice-center"])
 @router.get("")
 async def get_practice_center(current_user_id: str = Depends(get_current_user)):
     intelligence = get_or_create_user_intelligence(current_user_id)
+    completed = int(intelligence.get("completed_interviews", 0) or 0)
+    if completed == 0:
+        return {
+            "job_readiness_index": 0,
+            "areas_to_improve": [],
+            "learning_topics": [],
+            "recommended_questions": [],
+            "practice_interviews": [],
+            "achievements": [],
+            "daily_streak": 0,
+            "message": "Start your first interview to get personalized recommendations",
+        }
+
     return {
         "job_readiness_index": intelligence.get("job_readiness_index", 0),
         "areas_to_improve": intelligence.get("practice_recommendations", {}).get("areas_to_improve", []),
@@ -19,4 +32,5 @@ async def get_practice_center(current_user_id: str = Depends(get_current_user)):
         "practice_interviews": intelligence.get("practice_recommendations", {}).get("practice_interviews", []),
         "achievements": intelligence.get("achievements", []),
         "daily_streak": intelligence.get("daily_streak", 0),
+        "message": "",
     }

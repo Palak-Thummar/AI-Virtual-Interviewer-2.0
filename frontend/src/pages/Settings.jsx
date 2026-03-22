@@ -17,7 +17,7 @@ const sections = [
   { key: 'preferences', label: 'settings.sections.preferences' },
   { key: 'resume', label: 'settings.sections.resume' },
   { key: 'notifications', label: 'settings.sections.notifications' },
-  { key: 'privacy', label: 'settings.sections.privacy' }
+  { key: 'privacy', label: 'Delete Account' }
 ];
 
 export const SettingsPage = () => {
@@ -69,7 +69,7 @@ export const SettingsPage = () => {
               onClick={() => setActiveSection(item.key)}
               className={`${styles.menuItem} ${activeSection === item.key ? styles.menuItemActive : ''}`}
             >
-                {t(item.label)}
+              {item.label === 'Delete Account' ? item.label : t(item.label)}
             </button>
           ))}
         </aside>

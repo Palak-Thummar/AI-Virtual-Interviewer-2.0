@@ -226,20 +226,23 @@ def build_career_intelligence_payload(user_id: str | ObjectId, interviews: List[
     average_score = round(sum(scores) / len(scores), 2) if scores else 0.0
     highest_score = round(max(scores), 2) if scores else 0.0
 
-    skill_buckets = {skill: [] for skill in SKILL_KEYS}
-    for interview in completed_interviews:
-        skill_scores = _extract_skill_scores(interview)
-        for skill, value in skill_scores.items():
-            skill_buckets[skill].append(value)
-
-    skill_averages = {
-        skill: round(sum(values) / len(values), 2) if values else 0.0
-        for skill, values in skill_buckets.items()
-    }
-
+    # Only calculate skill metrics if user has completed interviews
+    skill_averages = {}
     strongest_skill = "-"
     weakest_skill = "-"
-    if completed_count:
+    
+    if completed_count > 0:
+        skill_buckets = {skill: [] for skill in SKILL_KEYS}
+        for interview in completed_interviews:
+            skill_scores = _extract_skill_scores(interview)
+            for skill, value in skill_scores.items():
+                skill_buckets[skill].append(value)
+
+        skill_averages = {
+            skill: round(sum(values) / len(values), 2) if values else 0.0
+            for skill, values in skill_buckets.items()
+        }
+
         strongest_skill = max(skill_averages, key=skill_averages.get)
         weakest_skill = min(skill_averages, key=skill_averages.get)
 
@@ -339,7 +342,6 @@ def rebuild_user_intelligence(user_id: str | ObjectId) -> Dict:
 
 def serialize_career_intelligence(document: Dict | None) -> Dict:
     if not document:
-        empty_skills = _empty_skill_map()
         return {
             "total_interviews": 0,
             "completed_interviews": 0,
@@ -351,9 +353,9 @@ def serialize_career_intelligence(document: Dict | None) -> Dict:
             "job_readiness_index": 0.0,
             "strongest_skill": "-",
             "weakest_skill": "-",
-            "skill_averages": empty_skills,
-            "skill_scores": empty_skills,
-            "skill_breakdown": empty_skills,
+            "skill_averages": {},
+            "skill_scores": {},
+            "skill_breakdown": {},
             "score_trend": [],
             "trend": [],
             "role_breakdown": [],

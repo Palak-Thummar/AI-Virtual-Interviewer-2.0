@@ -5,6 +5,7 @@ Create, manage, and complete interview sessions.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
+import asyncio
 from typing import List, Optional, Dict
 from bson import ObjectId
 from pydantic import BaseModel, Field
@@ -155,6 +156,8 @@ def _serialize_interview(interview: dict) -> dict:
         "interview_type": interview.get("interview_type", "general"),
         "status": interview.get("status", "pending"),
         "questions": interview.get("questions", []),
+        "questions_structured": interview.get("questions_structured", []),
+        "question_type": interview.get("question_type", "descriptive"),
         "answers": interview.get("answers", []),
         "current_question_index": int(interview.get("current_question_index", 0) or 0),
         "created_at": interview.get("created_at"),
@@ -213,19 +216,24 @@ async def create_interview(
     current_user_id: str = Depends(get_current_user)
 ):
     programming_language = _normalize_programming_language(getattr(setup, "programming_language", None))
+    print(setup.job_role, programming_language)
     interview_type = _normalize_interview_type(getattr(setup, "interview_type", "general"))
+    question_type = (getattr(setup, "question_type", "descriptive") or "descriptive").strip().lower()
+    if question_type not in {"mcq", "descriptive"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="question_type must be mcq or descriptive")
     
     # Verify resume exists
     resumes_collection = get_collection("resumes")
-    resume = resumes_collection.find_one({
-        "_id": ObjectId(setup.resume_id),
-        "user_id": ObjectId(current_user_id)
-    })
+    resume_query = {"user_id": ObjectId(current_user_id)}
+    if getattr(setup, "resume_id", None):
+        resume_query["_id"] = ObjectId(setup.resume_id)
+
+    resume = resumes_collection.find_one(resume_query, sort=[("uploaded_at", -1)])
     
     if not resume:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resume not found"
+            detail="Resume not found. Please upload resume first."
         )
     
     # Get resume text
@@ -236,14 +244,21 @@ async def create_interview(
 
     # Generate interview questions
     try:
-        questions = await generate_interview_questions(
+        generated_questions = await generate_interview_questions(
             job_role=setup.job_role,
             domain=setup.domain,
             resume_text=resume_text,
             job_description=setup.job_description,
             num_questions=num_questions,
             programming_language=programming_language,
+            question_type=question_type,
         )
+        if question_type == "mcq" and generated_questions and isinstance(generated_questions[0], dict):
+            questions_structured = generated_questions[:num_questions]
+            questions = [str(item.get("question", "")).strip() for item in questions_structured if str(item.get("question", "")).strip()]
+        else:
+            questions = [str(item).strip() for item in generated_questions if str(item).strip()][:num_questions]
+            questions_structured = [{"question": q, "type": question_type} for q in questions]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -261,8 +276,10 @@ async def create_interview(
         "domain": setup.domain,
         "programming_language": programming_language,
         "job_description": setup.job_description,
-        "resume_id": ObjectId(setup.resume_id),
+        "resume_id": resume.get("_id"),
+        "question_type": question_type,
         "questions": questions,
+        "questions_structured": questions_structured,
         "answers": [],
         "current_question_index": 0,
         "score": None,
@@ -414,7 +431,9 @@ async def submit_answer(
             detail="Invalid question ID"
         )
     
-    question = questions[answer_data.question_id]
+    questions_structured = interview.get("questions_structured") or []
+    question_payload = questions_structured[answer_data.question_id] if answer_data.question_id < len(questions_structured) else None
+    question = question_payload.get("question") if isinstance(question_payload, dict) else questions[answer_data.question_id]
     
     current_question_index = int(interview.get("current_question_index", 0) or 0)
     if answer_data.question_id != current_question_index:
@@ -430,15 +449,10 @@ async def submit_answer(
         if stored_answer.get("question_id") == answer_data.question_id:
             return AnswerEvaluationResponse(
                 question_id=stored_answer["question_id"],
-                score=stored_answer.get("score", 0),
-                feedback=stored_answer.get("feedback", ""),
                 strengths=stored_answer.get("strengths", []),
-                weaknesses=stored_answer.get("weaknesses", []),
-                improvements=stored_answer.get("improvements", []),
-                improvement_tips=stored_answer.get("improvement_tips", []),
+                improvement=stored_answer.get("improvement", stored_answer.get("improvements", [])),
                 ideal_answer=stored_answer.get("ideal_answer", ""),
-                runtime_ms=stored_answer.get("runtime_ms"),
-                test_case_success=stored_answer.get("test_case_success"),
+                feedback=stored_answer.get("feedback", ""),
             )
 
 
@@ -456,10 +470,10 @@ async def submit_answer(
 
         return AnswerEvaluationResponse(
             question_id=answer_data.question_id,
-            score=0,
-            feedback="Question skipped",
             strengths=[],
-            improvements=[]
+            improvement=["Answer was skipped."],
+            ideal_answer="",
+            feedback="Question skipped",
         )
 
     answer_text = (answer_data.answer or "").strip()
@@ -469,10 +483,31 @@ async def submit_answer(
             detail="Answer cannot be empty unless skipped"
         )
 
+    resolved_question_type = str((question_payload or {}).get("type") or interview.get("question_type") or "descriptive").lower()
     is_coding_answer = answer_data.answer_type == "code" or interview.get("interview_type") == "coding"
+    is_mcq_answer = resolved_question_type == "mcq"
 
     # Evaluate answer
-    if is_coding_answer:
+    if is_mcq_answer:
+        options = list((question_payload or {}).get("options") or [])
+        correct_answer = str((question_payload or {}).get("correct_answer") or "").strip().lower()
+        normalized_answer = answer_text.strip().lower()
+        passed = bool(correct_answer and normalized_answer == correct_answer)
+        if not passed and options:
+            for option in options:
+                if normalized_answer == str(option).strip().lower() and str(option).strip().lower() == correct_answer:
+                    passed = True
+                    break
+        evaluation = {
+            "score": 100 if passed else 0,
+            "feedback": "Correct answer selected." if passed else "Incorrect answer selected.",
+            "strengths": ["Good concept recall"] if passed else [],
+            "weaknesses": [] if passed else ["Need to review the core concept behind this question"],
+            "improvements": ["Review this topic and retry similar MCQs to improve speed and accuracy."],
+            "improvement_tips": ["Eliminate two incorrect options first, then compare the remaining choices carefully."],
+            "ideal_answer": (question_payload or {}).get("correct_answer", ""),
+        }
+    elif is_coding_answer:
         tests = interview.get("coding_tests") or [
             {"input": "1 2", "output": "3"},
             {"input": "10 5", "output": "15"},
@@ -528,6 +563,7 @@ async def submit_answer(
         "feedback": evaluation.get("feedback", ""),
         "strengths": evaluation.get("strengths", []),
         "weaknesses": evaluation.get("weaknesses", []),
+        "improvement": evaluation.get("improvement", evaluation.get("improvements", evaluation.get("improvement_tips", []))),
         "improvements": evaluation.get("improvements", []),
         "improvement_tips": evaluation.get("improvement_tips", []),
         "ideal_answer": evaluation.get("ideal_answer", ""),
@@ -551,15 +587,10 @@ async def submit_answer(
     
     return AnswerEvaluationResponse(
         question_id=answer_data.question_id,
-        score=evaluation.get("score", 0),
-        feedback=evaluation.get("feedback", ""),
         strengths=evaluation.get("strengths", []),
-        weaknesses=evaluation.get("weaknesses", []),
-        improvements=evaluation.get("improvements", []),
-        improvement_tips=evaluation.get("improvement_tips", []),
+        improvement=evaluation.get("improvement", evaluation.get("improvements", evaluation.get("improvement_tips", []))),
         ideal_answer=evaluation.get("ideal_answer", ""),
-        runtime_ms=evaluation.get("runtime_ms"),
-        test_case_success=evaluation.get("test_case_success"),
+        feedback=evaluation.get("feedback", ""),
     )
 
 
@@ -584,10 +615,10 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
         question_scores = [
             AnswerEvaluationResponse(
                 question_id=a.get("question_id", 0),
-                score=a.get("score", 0),
-                feedback=a.get("feedback", ""),
                 strengths=a.get("strengths", []),
-                improvements=a.get("improvements", [])
+                improvement=a.get("improvement", a.get("improvements", [])),
+                ideal_answer=a.get("ideal_answer", ""),
+                feedback=a.get("feedback", ""),
             )
             for a in answers
         ]
@@ -632,27 +663,32 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     resume_text = resume.get("parsed_text", "") if resume else ""
     jd_text = interview.get("job_description", "")
 
-    try:
-        jd_analysis = await analyze_resume_against_jd(resume_text, jd_text) if jd_text else _default_jd_analysis("Job description not provided")
-    except Exception as e:
-        jd_analysis = _default_jd_analysis(f"Analysis error: {str(e)}")
-
     answers = interview.get("answers", [])
-    session_eval = {"communication_score": 0}
-    if answers:
+    async def _safe_jd_analysis():
+        if not jd_text:
+            return _default_jd_analysis("Job description not provided")
         try:
-            session_eval = await evaluate_interview_session(
+            return await analyze_resume_against_jd(resume_text, jd_text)
+        except Exception as e:
+            return _default_jd_analysis(f"Analysis error: {str(e)}")
+
+    async def _safe_session_eval():
+        if not answers:
+            return {"overall_score": 0, "communication_score": 0}
+        try:
+            return await evaluate_interview_session(
                 questions=interview.get("questions", []),
                 answers=answers,
                 domain=interview.get("domain", ""),
                 job_role=interview.get("role", "")
             )
-            overall_score = float(session_eval.get("overall_score", 0) or 0)
         except Exception:
             answer_scores = [float(a.get("score", 0) or 0) for a in answers]
-            overall_score = sum(answer_scores) / len(answer_scores) if answer_scores else 0
-    else:
-        overall_score = 0
+            computed = sum(answer_scores) / len(answer_scores) if answer_scores else 0
+            return {"overall_score": computed, "communication_score": 0}
+
+    jd_analysis, session_eval = await asyncio.gather(_safe_jd_analysis(), _safe_session_eval())
+    overall_score = float(session_eval.get("overall_score", 0) or 0)
 
     behavioral_scores = []
     for answer in answers:
@@ -720,10 +756,10 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     question_scores = [
         AnswerEvaluationResponse(
             question_id=a.get("question_id", 0),
-            score=a.get("score", 0),
-            feedback=a.get("feedback", ""),
             strengths=a.get("strengths", []),
-            improvements=a.get("improvements", [])
+            improvement=a.get("improvement", a.get("improvements", [])),
+            ideal_answer=a.get("ideal_answer", ""),
+            feedback=a.get("feedback", ""),
         )
         for a in answers
     ]

@@ -23,6 +23,7 @@ export const InterviewSetupPage = () => {
   const [jobRole, setJobRole] = useState('');
   const [domain, setDomain] = useState('');
   const [interviewType, setInterviewType] = useState('general');
+  const [questionType, setQuestionType] = useState('descriptive');
   const [programmingLanguage, setProgrammingLanguage] = useState('Python');
   const [jobDescription, setJobDescription] = useState('');
   const [numQuestions, setNumQuestions] = useState(5);
@@ -34,9 +35,27 @@ export const InterviewSetupPage = () => {
   useEffect(() => {
     const loadDefaults = async () => {
       try {
-        const response = await settingsAPI.getPreferences();
-        const preferred = Number(response?.data?.default_question_count || 5);
+        const [prefResponse, settingsResumeResponse, resumeListResponse] = await Promise.all([
+          settingsAPI.getPreferences(),
+          settingsAPI.getResume(),
+          resumeAPI.list(),
+        ]);
+        const preferred = Number(prefResponse?.data?.default_question_count || 5);
         setNumQuestions(Math.min(20, Math.max(1, preferred)));
+        const prefTypes = prefResponse?.data?.question_types || [];
+        if (prefTypes.includes('mcq')) {
+          setQuestionType('mcq');
+        } else {
+          setQuestionType('descriptive');
+        }
+
+        const settingsResumeId = settingsResumeResponse?.data?.resume_id;
+        const resumeList = resumeListResponse?.data?.resumes || [];
+        const latestResumeId = settingsResumeId || (resumeList.length ? resumeList[0].id : '');
+        if (latestResumeId) {
+          setResumeId(latestResumeId);
+          setStep(2);
+        }
       } catch {
       }
     };
@@ -88,10 +107,12 @@ export const InterviewSetupPage = () => {
 
     try {
       // Analyze resume vs JD
+      console.log('create_interview_payload', { role: jobRole, programming_language: programmingLanguage });
       const analysisResponse = await interviewAPI.create({
         job_role: jobRole,
         domain,
         interview_type: interviewType,
+        question_type: questionType,
         programming_language: programmingLanguage,
         job_description: jobDescription,
         resume_id: resumeId,
@@ -140,6 +161,11 @@ export const InterviewSetupPage = () => {
     { value: 'general', label: 'General Interview' },
     { value: 'coding', label: 'Coding Interview' },
     { value: 'voice', label: 'Voice Mock Interview' }
+  ];
+
+  const questionTypeOptions = [
+    { value: 'descriptive', label: 'Descriptive' },
+    { value: 'mcq', label: 'MCQ' }
   ];
 
   return (
@@ -235,6 +261,14 @@ export const InterviewSetupPage = () => {
             onChange={(e) => setInterviewType(e.target.value)}
             options={interviewTypeOptions}
             placeholder="Interview Type"
+          />
+
+          <Select
+            label="Question Type"
+            value={questionType}
+            onChange={(e) => setQuestionType(e.target.value)}
+            options={questionTypeOptions}
+            placeholder="Question Type"
           />
 
           <Select

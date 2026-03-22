@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/resume", tags=["resume"])
 class ResumeAnalysisRequest(BaseModel):
     """Request for resume analysis."""
     resume_id: str
-    job_description: str
+    job_description: str = ""
 
 
 class ResumeAnalysisResponse(BaseModel):
@@ -328,7 +328,7 @@ async def analyze_resume(
         )
     
     resume_text = resume.get("parsed_text", "")
-    job_description = request.job_description
+    job_description = (request.job_description or "").strip()
     
     if not resume_text:
         raise HTTPException(
@@ -336,10 +336,10 @@ async def analyze_resume(
             detail="Resume has no parsed content"
         )
     
-    if not job_description or not job_description.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Job description is required"
+    if not job_description:
+        job_description = (
+            "Typical software engineering role requiring backend/API development, testing, "
+            "problem solving, and system design fundamentals."
         )
     
     try:

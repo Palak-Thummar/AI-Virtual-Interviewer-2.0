@@ -26,7 +26,7 @@ export const RegisterPage = () => {
     if (!email) newErrors.email = t('auth.validation.emailRequired');
     if (!password) newErrors.password = t('auth.validation.passwordRequired');
     if (password !== confirmPassword) newErrors.confirmPassword = t('auth.validation.passwordsMismatch');
-    if (password && password.length < 6) newErrors.password = t('auth.validation.passwordLength');
+    if (password && password.length < 8) newErrors.password = t('auth.validation.passwordLength');
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);

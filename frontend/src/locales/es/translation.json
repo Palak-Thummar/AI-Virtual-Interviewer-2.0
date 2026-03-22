@@ -65,7 +65,7 @@
       "passwordRequired": "La contraseña es obligatoria",
       "nameRequired": "El nombre es obligatorio",
       "passwordsMismatch": "Las contraseñas no coinciden",
-      "passwordLength": "La contraseña debe tener al menos 6 caracteres"
+      "passwordLength": "La contraseña debe tener al menos 8 caracteres"
     }
   },
   "dashboard": {

@@ -55,6 +55,8 @@ const api = axios.create({
   }
 });
 
+let refreshPromise = null;
+
 // Request interceptor
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -67,14 +69,47 @@ api.interceptors.request.use((config) => {
 // Response interceptor
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // Skip redirect if explicitly requested (used during token verification)
     if (error.config?.skipInterceptor) {
       return Promise.reject(error);
     }
-    
-    // Only redirect to login on 401 (unauthorized)
-    if (error.response?.status === 401) {
+
+    const originalRequest = error.config || {};
+    const statusCode = error.response?.status;
+    const path = String(originalRequest?.url || '');
+    const isAuthRoute = path.includes('/auth/login') || path.includes('/auth/register') || path.includes('/auth/refresh');
+
+    // Attempt one refresh for non-auth endpoints before logging out.
+    if (statusCode === 401 && !isAuthRoute && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      if (!refreshPromise) {
+        refreshPromise = authAPI.refresh()
+          .then((res) => {
+            const nextToken = res?.data?.access_token;
+            if (nextToken) {
+              localStorage.setItem('token', nextToken);
+            }
+            return nextToken;
+          })
+          .finally(() => {
+            refreshPromise = null;
+          });
+      }
+
+      try {
+        const refreshedToken = await refreshPromise;
+        if (refreshedToken) {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${refreshedToken}`;
+          return api(originalRequest);
+        }
+      } catch {
+      }
+    }
+
+    if (statusCode === 401) {
       localStorage.removeItem('token');
       sessionStorage.setItem('authRedirectReason', 'Your session has expired. Please sign in again.');
       const currentPath = window.location.pathname;

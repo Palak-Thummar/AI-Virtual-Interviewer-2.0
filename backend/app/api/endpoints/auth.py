@@ -47,10 +47,10 @@ async def register(request: Request, user_data: UserRegister):
             detail="Name cannot be empty"
         )
 
-    if len(normalized_password) < 6:
+    if len(normalized_password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters"
+            detail="Password must be at least 8 characters"
         )
     
     # Check if user exists
@@ -74,6 +74,7 @@ async def register(request: Request, user_data: UserRegister):
         "primary_role": "",
         "experience_level": "",
         "profile_image_url": "",
+        "token_version": 0,
         "onboarding_completed": False,
         "onboarding_step": 0,
         "created_at": now,
@@ -85,7 +86,7 @@ async def register(request: Request, user_data: UserRegister):
     user_id = str(result.inserted_id)
     
     # Create token
-    access_token = create_access_token({"sub": user_id, "email": normalized_email})
+    access_token = create_access_token({"sub": user_id, "email": normalized_email, "tv": 0})
     
     return TokenResponse(
         access_token=access_token,
@@ -135,7 +136,7 @@ async def login(request: Request, credentials: UserLogin):
 
     # Create token
     user_id = str(user["_id"])
-    access_token = create_access_token({"sub": user_id, "email": user["email"]})
+    access_token = create_access_token({"sub": user_id, "email": user["email"], "tv": int(user.get("token_version", 0) or 0)})
     logger.info("User logged in: %s", normalized_email)
     
     return TokenResponse(
@@ -189,7 +190,13 @@ async def refresh_token(current_user_id: str = Depends(get_current_user)):
     user = users_collection.find_one({"_id": ObjectId(current_user_id)})
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    access_token = create_access_token({"sub": current_user_id, "email": user.get("email", "")})
+    access_token = create_access_token(
+        {
+            "sub": current_user_id,
+            "email": user.get("email", ""),
+            "tv": int(user.get("token_version", 0) or 0),
+        }
+    )
     logger.info("Token refreshed for user: %s", current_user_id)
     return {"access_token": access_token, "token_type": "bearer"}
 

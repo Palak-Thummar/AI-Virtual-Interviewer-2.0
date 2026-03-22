@@ -65,7 +65,7 @@
       "passwordRequired": "Password is required",
       "nameRequired": "Name is required",
       "passwordsMismatch": "Passwords do not match",
-      "passwordLength": "Password must be at least 6 characters"
+      "passwordLength": "Password must be at least 8 characters"
     }
   },
   "dashboard": {
@@ -83,9 +83,11 @@
     "performanceTrend": "Performance Trend",
     "skillBreakdown": "Skill Breakdown",
     "analyzeResume": "Analyze Resume",
-    "analyzeResumeDescription": "Run resume analysis against a job description.",
+    "analyzeResumeDescription": "Run ATS analysis for your resume. Add a job description for role-specific matching (optional).",
     "resumeMissing": "Upload a resume in Settings before running resume analysis.",
     "resumeAnalysisTitle": "Resume Analysis",
+    "jobDescriptionOptional": "Job Description (Optional)",
+    "jobDescriptionOptionalPlaceholder": "Paste a job description for role-specific analysis. Leave blank to analyze against a typical software engineering role.",
     "jobDescription": "Job Description",
     "jobDescriptionPlaceholder": "Paste the job description you want to analyze your resume against...",
     "runAnalysis": "Run Analysis",

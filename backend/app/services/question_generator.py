@@ -5,7 +5,7 @@ Generates personalized interview questions based on role, domain, resume, and JD
 
 import json
 import re
-from typing import List
+from typing import Any, List
 from openai import OpenAI
 from app.core.config import settings, get_available_models_formatted
 
@@ -16,6 +16,17 @@ client = OpenAI(
     api_key=settings.OPENROUTER_API_KEY
 )
 
+_QUESTION_CACHE: dict[str, List[Any]] = {}
+_QUESTION_CACHE_MAX = 128
+
+LANGUAGE_MARKERS = {
+    "python": ["python", "pip", "pandas", "django", "flask"],
+    "java": ["java", "jvm", "spring", "maven", "gradle"],
+    "javascript": ["javascript", "node", "npm", "react", "express"],
+    "go": ["go", "golang", "goroutine", "go module"],
+    "c++": ["c++", "cpp", "stl", "template", "pointer"],
+}
+
 
 async def generate_interview_questions(
     job_role: str,
@@ -25,7 +36,8 @@ async def generate_interview_questions(
     num_questions: int = 5,
     programming_language: str | None = None,
     company_style: str | None = None,
-) -> List[str]:
+    question_type: str = "descriptive",
+) -> List[Any]:
     """
     Generate personalized interview questions.
     
@@ -49,6 +61,31 @@ async def generate_interview_questions(
     language_line = f"PROGRAMMING LANGUAGE: {programming_context}\n" if programming_context else ""
     company_line = f"COMPANY STYLE: {company_style}\n" if company_style else ""
 
+    normalized_question_type = (question_type or "descriptive").strip().lower()
+    is_mcq = normalized_question_type == "mcq"
+
+    cache_key = "|".join(
+        [
+            job_role.strip().lower(),
+            domain.strip().lower(),
+            normalized_question_type,
+            str(num_questions),
+            (programming_context or "").lower(),
+            (company_style or "").strip().lower(),
+            resume_text[:400].strip().lower(),
+            job_description[:400].strip().lower(),
+        ]
+    )
+    if cache_key in _QUESTION_CACHE:
+        return _QUESTION_CACHE[cache_key][:num_questions]
+
+    format_requirements = (
+        f"Return ONLY valid JSON array of exactly {num_questions} objects in this shape: "
+        "[{\"question\":\"...\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"correct_answer\":\"A\",\"type\":\"mcq\"}]"
+        if is_mcq
+        else f"Return ONLY valid JSON array of exactly {num_questions} question strings."
+    )
+
     prompt = f"""You are a senior technical interviewer with 20+ years of experience.
 
 Generate {num_questions} personalized technical interview questions based on:
@@ -56,36 +93,72 @@ Generate {num_questions} personalized technical interview questions based on:
 JOB ROLE: {job_role}
 DOMAIN: {domain}
 {company_line}{language_line}CANDIDATE RESUME:
-{resume_text[:1500]}
+{resume_text[:900]}
 
 JOB DESCRIPTION:
-{job_description[:1500]}
+{job_description[:900]}
 
 Requirements:
 - Questions should be personalized to the candidate's experience level
 - Mix behavioral, technical, and situational questions
 - Questions should align with the specific job requirements
-- If a programming language is provided, anchor technical questions in that language
+- If a programming language is provided, every technical question must be strictly about that language only
+- Do not reference or compare with other programming languages when a language is provided
 - Make them challenging but fair
-- Return a JSON array of questions only
-
-Format (return ONLY valid JSON array):
-["Question 1?", "Question 2?", ...]
+- QUESTION TYPE MODE: {normalized_question_type}
+- {format_requirements}
 
 Generate exactly {num_questions} questions. Return only the JSON array, no markdown."""
 
+    retry_prompt = (
+        prompt
+        + "\n\nIMPORTANT RETRY CONSTRAINTS:\n"
+        + "- Re-generate and ensure every question is strictly tied to the requested programming language.\n"
+        + "- Reject any mention of other programming languages."
+    )
+
     try:
-        response = await _call_openrouter(prompt)
-        questions = _parse_json_response(response)
-        
-        if isinstance(questions, list):
-            questions = [q.strip() for q in questions if isinstance(q, str)]
-            return questions[:num_questions]
-        
-        return _generate_fallback_questions(job_role, domain, num_questions, programming_context)
-        
-    except Exception as e:
-        return _generate_fallback_questions(job_role, domain, num_questions, programming_context)
+        for attempt in range(2):
+            response = await _call_openrouter(prompt if attempt == 0 else retry_prompt)
+            questions = _parse_json_response(response)
+
+            if not isinstance(questions, list):
+                continue
+
+            if is_mcq and questions and isinstance(questions[0], dict):
+                normalized = []
+                for item in questions:
+                    question_text = str(item.get("question", "")).strip()
+                    options = [str(opt).strip() for opt in (item.get("options") or []) if str(opt).strip()]
+                    correct_answer = str(item.get("correct_answer", "")).strip()
+                    if question_text and len(options) >= 2:
+                        normalized.append(
+                            {
+                                "question": question_text,
+                                "options": options[:4],
+                                "correct_answer": correct_answer or options[0],
+                                "type": "mcq",
+                            }
+                        )
+
+                if normalized and _questions_match_requested_language(normalized, programming_context):
+                    _QUESTION_CACHE[cache_key] = normalized[:num_questions]
+                    if len(_QUESTION_CACHE) > _QUESTION_CACHE_MAX:
+                        _QUESTION_CACHE.pop(next(iter(_QUESTION_CACHE)))
+                    return normalized[:num_questions]
+                continue
+
+            normalized_strings = [q.strip() for q in questions if isinstance(q, str)]
+            if normalized_strings and _questions_match_requested_language(normalized_strings, programming_context):
+                _QUESTION_CACHE[cache_key] = normalized_strings[:num_questions]
+                if len(_QUESTION_CACHE) > _QUESTION_CACHE_MAX:
+                    _QUESTION_CACHE.pop(next(iter(_QUESTION_CACHE)))
+                return normalized_strings[:num_questions]
+
+        return _generate_fallback_questions(job_role, domain, num_questions, programming_context, normalized_question_type)
+
+    except Exception:
+        return _generate_fallback_questions(job_role, domain, num_questions, programming_context, normalized_question_type)
 
 
 async def generate_follow_up_question(
@@ -155,7 +228,38 @@ def _parse_json_response(response: str) -> list:
         raise ValueError(f"Invalid JSON response: {response[:100]}")
 
 
-def _generate_fallback_questions(role: str, domain: str, count: int, programming_language: str | None = None) -> List[str]:
+def _questions_match_requested_language(questions: List[Any], programming_language: str | None) -> bool:
+    if not programming_language:
+        return True
+
+    selected = programming_language.strip().lower()
+    markers = LANGUAGE_MARKERS.get(selected)
+    if not markers:
+        return True
+
+    all_text = []
+    for item in questions:
+        if isinstance(item, dict):
+            all_text.append(str(item.get("question", "")))
+            all_text.extend([str(opt) for opt in (item.get("options") or [])])
+        else:
+            all_text.append(str(item))
+
+    blob = "\n".join(all_text).lower()
+    has_selected = any(marker in blob for marker in markers)
+    if not has_selected:
+        return False
+
+    for language, language_markers in LANGUAGE_MARKERS.items():
+        if language == selected:
+            continue
+        if any(marker in blob for marker in language_markers):
+            return False
+
+    return True
+
+
+def _generate_fallback_questions(role: str, domain: str, count: int, programming_language: str | None = None, question_type: str = "descriptive") -> List[Any]:
     """
     Generate fallback questions if AI generation fails.
     Provides sensible default questions.
@@ -176,4 +280,22 @@ def _generate_fallback_questions(role: str, domain: str, count: int, programming
         f"What are your long-term career goals in {domain}?",
     ]
     
+    if question_type == "mcq":
+        mcq = []
+        for text in all_questions[:count]:
+            mcq.append(
+                {
+                    "question": text,
+                    "options": [
+                        "Approach A",
+                        "Approach B",
+                        "Approach C",
+                        "Approach D",
+                    ],
+                    "correct_answer": "Approach A",
+                    "type": "mcq",
+                }
+            )
+        return mcq
+
     return all_questions[:count]

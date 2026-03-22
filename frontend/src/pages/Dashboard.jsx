@@ -79,6 +79,10 @@ export const DashboardPage = () => {
   const skills = summary?.skill_breakdown || {};
   const skillBreakdown = Object.entries(skills).map(([skill, value]) => ({ skill, value: Number(value || 0) }));
   const recent = Array.isArray(summary?.recent_interviews) ? summary.recent_interviews : [];
+  const noDetectedSkills = analysisResult
+    && !(analysisResult?.matched_skills || []).length
+    && !(analysisResult?.missing_skills || []).length
+    && !(analysisResult?.keyword_gaps || []).length;
 
   const handleAnalyzeResume = async () => {
     if (!resume?.resume_id) {
@@ -88,14 +92,10 @@ export const DashboardPage = () => {
     setAnalysisResult(null);
     setAnalysisError('');
     setAnalysisOpen(true);
+    await runResumeAnalysis();
   };
 
   const runResumeAnalysis = async () => {
-    if (!jobDescription.trim()) {
-      setAnalysisError(t('setup.validation.jobDescription'));
-      return;
-    }
-
     try {
       setAnalysisLoading(true);
       setAnalysisError('');
@@ -273,19 +273,23 @@ export const DashboardPage = () => {
             <>
               <p>{t('dashboard.analyzeResumeDescription')}</p>
               <TextArea
-                label={t('dashboard.jobDescription')}
+                label={t('dashboard.jobDescriptionOptional')}
                 value={jobDescription}
                 onChange={(event) => setJobDescription(event.target.value)}
-                placeholder={t('dashboard.jobDescriptionPlaceholder')}
-                rows={6}
+                placeholder={t('dashboard.jobDescriptionOptionalPlaceholder')}
+                rows={5}
               />
               {analysisError ? <div className={styles.emptyTitle}>{analysisError}</div> : null}
+              {analysisLoading ? <p>{t('common.loading')}</p> : null}
               {analysisResult ? (
                 <div className={styles.tableCard} style={{ padding: 16 }}>
                   <p><strong>{t('results.atsScore')}</strong> {Math.round(Number(analysisResult?.ats_score || 0))}%</p>
                   <p><strong>{t('results.matchedSkills')}</strong> {(analysisResult?.matched_skills || []).join(', ') || '-'}</p>
                   <p><strong>{t('results.missingSkills')}</strong> {(analysisResult?.missing_skills || []).join(', ') || '-'}</p>
                   <p><strong>{t('results.keywordGaps')}</strong> {(analysisResult?.keyword_gaps || []).join(', ') || '-'}</p>
+                  {noDetectedSkills ? (
+                    <p style={{ marginTop: 8 }}>No skills detected. Try uploading a better formatted resume.</p>
+                  ) : null}
                 </div>
               ) : null}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

@@ -30,6 +30,11 @@ TECH_KEYWORDS = [
     "spark", "hadoop", "airflow", "etl", "tableau", "power bi", "pytest", "unit testing", "integration testing"
 ]
 
+DEFAULT_SOFTWARE_ENGINEERING_SKILLS = [
+    "python", "java", "javascript", "typescript", "go", "sql", "postgresql", "mongodb",
+    "docker", "kubernetes", "aws", "system design", "rest", "git", "ci/cd", "testing",
+]
+
 
 async def analyze_resume_against_jd(
     resume_text: str,
@@ -59,66 +64,157 @@ async def analyze_resume_against_jd(
         print("[JD Analyzer] WARNING: Empty resume text provided")
         return _get_default_analysis_response("Empty resume text")
     
-    if not job_description or not job_description.strip():
-        print("[JD Analyzer] WARNING: Empty job description provided")
-        return _get_default_analysis_response("Empty job description")
-    
-    fallback = _build_fallback_skill_analysis(resume_text, job_description)
+    effective_jd = (job_description or "").strip()
+    if not effective_jd:
+        effective_jd = (
+            "Typical software engineering role requiring backend/API development, "
+            "problem solving, testing, system design fundamentals, cloud/deployment awareness, and collaboration."
+        )
 
-    # First, get the analysis
+    fallback = _build_fallback_skill_analysis(resume_text, effective_jd)
+
+    # Use a single strict JSON prompt for consistent ATS/skills output.
+    prompt = f"""Analyze the following resume against a typical software engineering role.
+
+Extract:
+1. Technical skills present in resume
+2. Missing important skills
+3. Keyword gaps
+4. ATS score (0-100)
+
+Resume:
+{resume_text[:5000]}
+
+Job context:
+{effective_jd[:1500]}
+
+Return strictly in JSON:
+{{
+  "ats_score": 0,
+  "matched_skills": [],
+  "missing_skills": [],
+  "keyword_gaps": [],
+  "experience_gap": "",
+  "improvement_suggestions": [],
+  "ats_optimization_tips": []
+}}
+
+Rules:
+- Return valid JSON only.
+- Keep skills concise.
+- Do not include markdown.
+"""
+
     try:
-        print(f"[JD Analyzer] Starting analysis with resume length: {len(resume_text)}, JD length: {len(job_description)}")
-        
-        # Get matched and missing skills
-        matched_skills = await extract_matched_skills(resume_text, job_description)
-        missing_skills = await extract_missing_skills(resume_text, job_description)
-        keyword_gaps = await extract_keyword_gaps(resume_text, job_description)
+        print(f"[JD Analyzer] Starting analysis with resume length: {len(resume_text)}, JD length: {len(effective_jd)}")
+        response = await _call_openrouter(prompt)
+        parsed = _parse_json_response(response)
 
-        matched_skills = _merge_unique_strings(matched_skills, fallback["matched_skills"], limit=20)
-        missing_skills = _merge_unique_strings(missing_skills, fallback["missing_skills"], limit=20)
-        keyword_gaps = _merge_unique_strings(keyword_gaps, fallback["keyword_gaps"], limit=20)
-        
-        # Get ATS score directly from OpenRouter (not from formula)
-        print(f"[JD Analyzer] Requesting ATS score from OpenRouter...")
-        ats_score_ai = await calculate_ats_score_from_openrouter(resume_text, job_description)
-        heuristic_score = float(fallback["ats_score"])
+        result = _validate_analysis_response(parsed if isinstance(parsed, dict) else {})
 
-        if abs(ats_score_ai - 50.0) < 0.001:
-            ats_score = heuristic_score
-        else:
-            ats_score = round((ats_score_ai * 0.7) + (heuristic_score * 0.3), 2)
+        # If model returns empty arrays, use deterministic keyword fallback from resume text.
+        if not (result.get("matched_skills") or result.get("missing_skills") or result.get("keyword_gaps")):
+            manual = _manual_skill_fallback(resume_text, effective_jd)
+            result["matched_skills"] = manual["matched_skills"]
+            result["missing_skills"] = manual["missing_skills"]
+            result["keyword_gaps"] = manual["keyword_gaps"]
+            if float(result.get("ats_score", 0.0) or 0.0) <= 0:
+                result["ats_score"] = manual["ats_score"]
 
-        ats_score = min(max(float(ats_score), 0.0), 100.0)
-        print(f"[JD Analyzer] OpenRouter ATS: {ats_score_ai}%, Heuristic ATS: {heuristic_score}%, Final ATS: {ats_score}%")
-        
-        # Get suggestions in parallel
-        improvement_suggestions = await get_improvement_suggestions(resume_text, job_description)
-        ats_optimization_tips = await generate_ats_optimization_tips(resume_text, job_description)
-        
-        # Get experience gap analysis
-        experience_gap = await analyze_experience_gap(resume_text, job_description)
-        
-        result = {
-            "ats_score": ats_score,
-            "matched_skills": matched_skills[:20],
-            "missing_skills": missing_skills[:20],
-            "keyword_gaps": keyword_gaps[:20],
-            "experience_gap": experience_gap,
-            "improvement_suggestions": improvement_suggestions[:10],
-            "ats_optimization_tips": ats_optimization_tips[:10]
-        }
-        
-        print(f"[JD Analyzer] Analysis complete. Final ATS Score: {result['ats_score']}%")
+        # Merge fallback if any field is still sparse.
+        result["matched_skills"] = _merge_unique_strings(result.get("matched_skills", []), fallback["matched_skills"], limit=20)
+        result["missing_skills"] = _merge_unique_strings(result.get("missing_skills", []), fallback["missing_skills"], limit=20)
+        result["keyword_gaps"] = _merge_unique_strings(result.get("keyword_gaps", []), fallback["keyword_gaps"], limit=20)
+        result = _enforce_jd_scope(result, resume_text, effective_jd)
+
+        print(f"[JD Analyzer] Analysis complete. Final ATS Score: {result.get('ats_score')}%")
         return _validate_analysis_response(result)
         
     except Exception as e:
         print(f"[JD Analyzer] ERROR in analyze_resume_against_jd: {str(e)}")
         failed_result = _get_default_analysis_response(str(e))
-        failed_result["matched_skills"] = fallback.get("matched_skills", [])
-        failed_result["missing_skills"] = fallback.get("missing_skills", [])
-        failed_result["keyword_gaps"] = fallback.get("keyword_gaps", [])
-        failed_result["ats_score"] = fallback.get("ats_score", failed_result.get("ats_score", 50.0))
+        manual = _manual_skill_fallback(resume_text, effective_jd)
+        failed_result["matched_skills"] = _merge_unique_strings(manual.get("matched_skills", []), fallback.get("matched_skills", []), limit=20)
+        failed_result["missing_skills"] = _merge_unique_strings(manual.get("missing_skills", []), fallback.get("missing_skills", []), limit=20)
+        failed_result["keyword_gaps"] = _merge_unique_strings(manual.get("keyword_gaps", []), fallback.get("keyword_gaps", []), limit=20)
+        failed_result = _enforce_jd_scope(failed_result, resume_text, effective_jd)
+        failed_result["ats_score"] = max(
+            float(fallback.get("ats_score", 0.0) or 0.0),
+            float(manual.get("ats_score", 0.0) or 0.0),
+            float(failed_result.get("ats_score", 50.0) or 50.0),
+        )
         return _validate_analysis_response(failed_result)
+
+
+def _manual_skill_fallback(resume_text: str, job_description: str | None = None) -> dict:
+    resume_terms = _extract_technical_terms_from_text(resume_text)
+    resume_set = {_normalize_term(term) for term in resume_terms}
+
+    jd_terms = _extract_technical_terms_from_text(job_description or "")
+    target_skills = jd_terms if jd_terms else DEFAULT_SOFTWARE_ENGINEERING_SKILLS
+
+    matched = []
+    missing = []
+    for term in target_skills:
+        if _normalize_term(term) in resume_set:
+            matched.append(term)
+        else:
+            missing.append(term)
+
+    denominator = len(target_skills) if target_skills else len(DEFAULT_SOFTWARE_ENGINEERING_SKILLS)
+    coverage = (len(matched) / denominator) if denominator else 0
+    ats_score = round(min(100.0, max(35.0, 35.0 + coverage * 55.0)), 2)
+
+    return {
+        "ats_score": ats_score,
+        "matched_skills": matched[:20] if matched else resume_terms[:20],
+        "missing_skills": missing[:20],
+        "keyword_gaps": missing[:20],
+    }
+
+
+def _enforce_jd_scope(data: dict, resume_text: str, job_description: str) -> dict:
+    """Keep missing/keyword/matched skills scoped to terms present in the provided JD."""
+    jd_terms = _extract_technical_terms_from_text(job_description)
+    if not jd_terms:
+        return data
+
+    jd_norm_to_term = {_normalize_term(term): term for term in jd_terms}
+    jd_norm = set(jd_norm_to_term.keys())
+
+    resume_terms = _extract_technical_terms_from_text(resume_text)
+    resume_norm = {_normalize_term(term) for term in resume_terms}
+
+    matched = []
+    for item in data.get("matched_skills", []):
+        key = _normalize_term(item)
+        if key in jd_norm and key in resume_norm:
+            matched.append(jd_norm_to_term[key])
+
+    missing = []
+    for item in data.get("missing_skills", []):
+        key = _normalize_term(item)
+        if key in jd_norm and key not in resume_norm:
+            missing.append(jd_norm_to_term[key])
+
+    keyword_gaps = []
+    for item in data.get("keyword_gaps", []):
+        key = _normalize_term(item)
+        if key in jd_norm and key not in resume_norm:
+            keyword_gaps.append(jd_norm_to_term[key])
+
+    # Derive deterministic JD-only values when LLM output is noisy.
+    if not matched:
+        matched = [jd_norm_to_term[key] for key in jd_norm if key in resume_norm]
+    if not missing:
+        missing = [jd_norm_to_term[key] for key in jd_norm if key not in resume_norm]
+    if not keyword_gaps:
+        keyword_gaps = list(missing)
+
+    data["matched_skills"] = _merge_unique_strings(matched, [], limit=20)
+    data["missing_skills"] = _merge_unique_strings(missing, [], limit=20)
+    data["keyword_gaps"] = _merge_unique_strings(keyword_gaps, [], limit=20)
+    return data
 
 
 async def generate_ats_optimization_tips(

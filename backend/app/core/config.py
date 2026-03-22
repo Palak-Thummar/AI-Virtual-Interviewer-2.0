@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # JWT
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
     # Rate limiting (requests per minute per IP)
     RATE_LIMIT_PER_MINUTE: int = 60
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     COACH_MODEL_NAME: str = "nvidia/nemotron-3-nano-30b-a3b:free"
 
     # Judge0 execution API
-    JUDGE0_API_URL: str = "https://judge0-ce.p.rapidapi.com"
+    JUDGE0_API_URL: str = "https://ce.judge0.com"
     JUDGE0_API_KEY: str = ""
 
     # Optional SMTP for notification email delivery

@@ -13,7 +13,7 @@ class UserRegister(BaseModel):
     """User registration request."""
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=100)
+    password: str = Field(..., min_length=8, max_length=100)
 
 
 class UserLogin(BaseModel):
@@ -70,10 +70,11 @@ class InterviewSetup(BaseModel):
     job_role: str = Field(..., min_length=1, max_length=100)
     domain: str = Field(..., min_length=1, max_length=50)
     job_description: str = Field(..., min_length=10)
-    resume_id: str
+    resume_id: Optional[str] = None
     num_questions: Optional[int] = Field(default=None, ge=1, le=20)
     programming_language: Optional[str] = Field(default=None, max_length=30)
     interview_type: Optional[str] = Field(default="general", max_length=20)
+    question_type: Optional[str] = Field(default="descriptive", max_length=20)
 
 
 class InterviewCreateResponse(BaseModel):
@@ -98,15 +99,10 @@ class AnswerSubmission(BaseModel):
 class AnswerEvaluationResponse(BaseModel):
     """Response after evaluating answer."""
     question_id: int
-    score: float
-    feedback: str
-    strengths: List[str]
-    weaknesses: List[str] = []
-    improvements: List[str]
-    improvement_tips: List[str] = []
+    strengths: List[str] = []
+    improvement: List[str] = []
     ideal_answer: str = ""
-    runtime_ms: Optional[float] = None
-    test_case_success: Optional[float] = None
+    feedback: str = ""
 
 
 # ============= RESULTS AND ANALYTICS SCHEMAS =============

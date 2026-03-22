@@ -96,6 +96,11 @@ export const CodingPracticePage = () => {
     ? codeByProblem[selectedProblem.id] ?? DEFAULT_TEMPLATE
     : DEFAULT_TEMPLATE;
 
+  const isExecutionServiceUnavailable =
+    result?.error === 'Code execution service unavailable'
+    || String(result?.error_message || '').toLowerCase().includes('code execution service unavailable')
+    || String(result?.error_message || '').toLowerCase().includes('code runner unavailable');
+
   const updateCode = (value) => {
     if (!selectedProblem) return;
     setCodeByProblem((prev) => ({
@@ -263,42 +268,51 @@ export const CodingPracticePage = () => {
 
               {result ? (
                 <article className={styles.resultCard}>
+                  {result.error_message ? (
+                    <div className={styles.errorBanner} style={{ marginBottom: 12 }}>
+                      {isExecutionServiceUnavailable
+                        ? 'Code execution service temporarily unavailable. Try again later.'
+                        : result.error_message}
+                    </div>
+                  ) : null}
                   <div className={styles.resultHeader}>
                     <span className={`${styles.resultBadge} ${result.passed ? styles.resultPassed : styles.resultFailed}`}>
-                      {result.passed ? 'Passed' : 'Failed'}
+                      {isExecutionServiceUnavailable ? 'Unavailable' : (result.passed ? 'Passed' : 'Failed')}
                     </span>
                     <span className={styles.execTime}>Execution Time: {result.execution_time || '-'}</span>
                   </div>
 
-                  <div className={styles.tableWrap}>
-                    <table className={styles.resultTable}>
-                      <thead>
-                        <tr>
-                          <th>Input</th>
-                          <th>Expected</th>
-                          <th>Actual</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(result.test_results || []).map((test, index) => (
-                          <tr
-                            key={`test-${index}`}
-                            className={test.status === 'passed' ? styles.rowPassed : styles.rowFailed}
-                          >
-                            <td>{test.input}</td>
-                            <td>{test.expected}</td>
-                            <td>{test.actual}</td>
-                            <td>
-                              <span className={`${styles.statusPill} ${resultClassMap[test.status] || styles.statusFailed}`}>
-                                {test.status}
-                              </span>
-                            </td>
+                  {!isExecutionServiceUnavailable ? (
+                    <div className={styles.tableWrap}>
+                      <table className={styles.resultTable}>
+                        <thead>
+                          <tr>
+                            <th>Input</th>
+                            <th>Expected</th>
+                            <th>Actual</th>
+                            <th>Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {(result.test_results || []).map((test, index) => (
+                            <tr
+                              key={`test-${index}`}
+                              className={test.status === 'passed' ? styles.rowPassed : styles.rowFailed}
+                            >
+                              <td>{test.input}</td>
+                              <td>{test.expected}</td>
+                              <td>{test.actual}</td>
+                              <td>
+                                <span className={`${styles.statusPill} ${resultClassMap[test.status] || styles.statusFailed}`}>
+                                  {test.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
                 </article>
               ) : null}
             </>

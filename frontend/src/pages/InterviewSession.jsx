@@ -7,7 +7,11 @@ import { interviewAPI, parseApiError } from '../services/api';
 import { useIntelligenceStore } from '../context/IntelligenceStore';
 import styles from './InterviewSession.module.css';
 
-const QUESTION_TIME_SECONDS = 60;
+const getQuestionTimeLimit = (interviewType, questionType) => {
+  if (interviewType === 'coding') return 600;
+  if (questionType === 'mcq') return 30;
+  return 90;
+};
 
 export const InterviewSessionPage = () => {
   const { t } = useTranslation();
@@ -22,7 +26,8 @@ export const InterviewSessionPage = () => {
   const [interview, setInterview] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [currentAnswer, setCurrentAnswer] = useState('');
-  const [timer, setTimer] = useState(QUESTION_TIME_SECONDS);
+  const [timer, setTimer] = useState(90);
+  const [mcqSelection, setMcqSelection] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [feedbackExpanded, setFeedbackExpanded] = useState(true);
@@ -31,6 +36,7 @@ export const InterviewSessionPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [recognitionInstance, setRecognitionInstance] = useState(null);
+  const [liveTranscript, setLiveTranscript] = useState('');
 
   useEffect(() => {
     const loadInterview = async () => {
@@ -54,13 +60,17 @@ export const InterviewSessionPage = () => {
           role: data.role || data.job_role || '',
           type: data.type || 'general',
           interview_type: data.interview_type || 'general',
+          question_type: data.question_type || 'descriptive',
           programming_language: data.programming_language || 'python',
           questions: Array.isArray(data.questions) ? data.questions : [],
+          questions_structured: Array.isArray(data.questions_structured) ? data.questions_structured : [],
           answers: Array.isArray(data.answers) ? data.answers : []
         });
 
         setCurrentQuestionIndex(Number(data.current_question_index || 0));
-        setTimer(QUESTION_TIME_SECONDS);
+        const initialQuestion = Array.isArray(data.questions_structured) ? data.questions_structured[Number(data.current_question_index || 0)] : null;
+        const initialQuestionType = initialQuestion?.type || data.question_type || 'descriptive';
+        setTimer(getQuestionTimeLimit(data.interview_type || 'general', initialQuestionType));
       } catch (err) {
         setError(parseApiError(err, 'Failed to load interview session.'));
       } finally {
@@ -83,15 +93,25 @@ export const InterviewSessionPage = () => {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.onresult = (event) => {
-      let transcript = '';
+      let finalTranscript = '';
+      let interimTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        transcript += event.results[i][0].transcript;
+        const segment = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += segment;
+        } else {
+          interimTranscript += segment;
+        }
       }
-      if (transcript.trim()) {
-        setCurrentAnswer((prev) => `${prev}${prev ? ' ' : ''}${transcript}`.trim());
+      if (finalTranscript.trim()) {
+        setCurrentAnswer((prev) => `${prev}${prev ? ' ' : ''}${finalTranscript.trim()}`.trim());
       }
+      setLiveTranscript(interimTranscript.trim());
     };
-    recognition.onend = () => setIsRecording(false);
+    recognition.onend = () => {
+      setIsRecording(false);
+      setLiveTranscript('');
+    };
 
     setRecognitionInstance(recognition);
     setSpeechSupported(true);
@@ -109,7 +129,7 @@ export const InterviewSessionPage = () => {
         if (prev <= 1) {
           clearInterval(interval);
           handleSkipQuestion();
-          return QUESTION_TIME_SECONDS;
+          return prev;
         }
         return prev - 1;
       });
@@ -118,8 +138,17 @@ export const InterviewSessionPage = () => {
     return () => clearInterval(interval);
   }, [loading, completed, feedback, interview?.questions?.length, currentQuestionIndex]);
 
-  const currentQuestion = interview?.questions?.[currentQuestionIndex] || '';
+  const currentQuestionData = interview?.questions_structured?.[currentQuestionIndex] || null;
+  const currentQuestion = currentQuestionData?.question || interview?.questions?.[currentQuestionIndex] || '';
+  const currentQuestionType = (currentQuestionData?.type || interview?.question_type || 'descriptive').toLowerCase();
   const hasMultipleQuestions = (interview?.questions?.length || 0) > 1;
+
+  useEffect(() => {
+    if (!interview?.questions?.length) return;
+    const limit = getQuestionTimeLimit(interview?.interview_type, currentQuestionType);
+    setTimer(limit);
+    setMcqSelection('');
+  }, [currentQuestionIndex, feedback, interview?.interview_type, currentQuestionType, interview?.questions?.length]);
 
   const completedAnswers = useMemo(() => {
     return Array.isArray(interview?.answers) ? interview.answers.length : 0;
@@ -145,7 +174,8 @@ export const InterviewSessionPage = () => {
   };
 
   const handleSubmitAnswer = async () => {
-    if (!currentAnswer.trim() || submitting) return;
+    const answerPayload = currentQuestionType === 'mcq' ? mcqSelection : currentAnswer.trim();
+    if (!answerPayload || submitting) return;
 
     setSubmitting(true);
     setError('');
@@ -153,7 +183,7 @@ export const InterviewSessionPage = () => {
     try {
       const response = await interviewAPI.submitAnswer(interviewId, {
         question_id: currentQuestionIndex,
-        answer: currentAnswer.trim(),
+        answer: answerPayload,
         skipped: false,
         answer_type: interview?.interview_type === 'coding' ? 'code' : (interview?.interview_type === 'voice' ? 'voice' : 'text'),
         language: interview?.programming_language || 'python',
@@ -164,12 +194,14 @@ export const InterviewSessionPage = () => {
       const answerRecord = {
         question_id: currentQuestionIndex,
         question: currentQuestion,
-        answer: currentAnswer.trim(),
+        answer: answerPayload,
         score: Number(data?.score || 0),
         feedback: data?.feedback || '',
         strengths: Array.isArray(data?.strengths) ? data.strengths : [],
         weaknesses: Array.isArray(data?.weaknesses) ? data.weaknesses : [],
-        improvements: Array.isArray(data?.improvements) ? data.improvements : [],
+        improvements: Array.isArray(data?.improvement)
+          ? data.improvement
+          : (Array.isArray(data?.improvements) ? data.improvements : []),
         improvement_tips: Array.isArray(data?.improvement_tips) ? data.improvement_tips : [],
         ideal_answer: data?.ideal_answer || '',
         runtime_ms: data?.runtime_ms ?? null,
@@ -179,7 +211,7 @@ export const InterviewSessionPage = () => {
       appendAnswerLocally(answerRecord);
       setFeedback(answerRecord);
       setCurrentAnswer('');
-      setTimer(QUESTION_TIME_SECONDS);
+      setLiveTranscript('');
     } catch (err) {
       setError(parseApiError(err, 'Failed to submit answer.'));
     } finally {
@@ -204,7 +236,7 @@ export const InterviewSessionPage = () => {
         setCurrentQuestionIndex((prev) => prev + 1);
         setCurrentAnswer('');
         setFeedback(null);
-        setTimer(QUESTION_TIME_SECONDS);
+        setLiveTranscript('');
       } else {
         await handleSubmitInterview();
       }
@@ -220,7 +252,7 @@ export const InterviewSessionPage = () => {
       setCurrentQuestionIndex((prev) => prev + 1);
       setCurrentAnswer('');
       setFeedback(null);
-      setTimer(QUESTION_TIME_SECONDS);
+      setLiveTranscript('');
       return;
     }
 
@@ -257,8 +289,10 @@ export const InterviewSessionPage = () => {
     if (isRecording) {
       recognitionInstance.stop();
       setIsRecording(false);
+      setLiveTranscript('');
       return;
     }
+    setLiveTranscript('');
     recognitionInstance.start();
     setIsRecording(true);
   };
@@ -391,6 +425,21 @@ export const InterviewSessionPage = () => {
                 onChange={(value) => setCurrentAnswer(value || '')}
                 options={{ minimap: { enabled: false }, fontSize: 14, automaticLayout: true }}
               />
+            ) : currentQuestionType === 'mcq' ? (
+              <div className={styles.feedbackBlock}>
+                {(currentQuestionData?.options || []).map((option) => (
+                  <label key={option} style={{ display: 'block', marginBottom: 8 }}>
+                    <input
+                      type="radio"
+                      name="mcq-option"
+                      value={option}
+                      checked={mcqSelection === option}
+                      onChange={(event) => setMcqSelection(event.target.value)}
+                    />{' '}
+                    {option}
+                  </label>
+                ))}
+              </div>
             ) : (
               <textarea
                 className={styles.answerInput}
@@ -402,16 +451,19 @@ export const InterviewSessionPage = () => {
             )}
 
             {interview?.interview_type === 'voice' ? (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={toggleRecording}
-                  disabled={!speechSupported}
-                >
-                  {isRecording ? <MicOff size={15} /> : <Mic size={15} />} {isRecording ? 'Stop Recording' : 'Start Recording'}
-                </button>
-              </div>
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={toggleRecording}
+                    disabled={!speechSupported}
+                  >
+                    {isRecording ? <MicOff size={15} /> : <Mic size={15} />} {isRecording ? 'Stop Recording' : 'Start Recording'}
+                  </button>
+                </div>
+                {liveTranscript ? <p className={styles.questionCount}>Live transcript: {liveTranscript}</p> : null}
+              </>
             ) : null}
 
             <div className={styles.answerMeta}>
@@ -426,7 +478,7 @@ export const InterviewSessionPage = () => {
                   type="button"
                   className={styles.primaryButton}
                   onClick={handleSubmitAnswer}
-                  disabled={!currentAnswer.trim() || submitting}
+                  disabled={currentQuestionType === 'mcq' ? !mcqSelection || submitting : !currentAnswer.trim() || submitting}
                 >
                   {submitting ? t('session.submitting') : t('session.submitAnswer')}
                 </button>
@@ -452,22 +504,6 @@ export const InterviewSessionPage = () => {
                 {feedbackExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {feedbackExpanded ? 'Collapse' : 'Expand'}
               </button>
             </div>
-            <div className={`${styles.scoreBadge} ${scoreClassName}`}>{t('session.feedback.score', { score: Number(feedback.score || 0) })}</div>
-
-            {feedback.runtime_ms != null ? (
-              <div className={styles.feedbackBlock}>
-                <h4>Runtime</h4>
-                <p>{Number(feedback.runtime_ms).toFixed(0)} ms</p>
-              </div>
-            ) : null}
-
-            {feedback.test_case_success != null ? (
-              <div className={styles.feedbackBlock}>
-                <h4>Test Case Success</h4>
-                <p>{Number(feedback.test_case_success).toFixed(0)}%</p>
-              </div>
-            ) : null}
-
             {feedbackExpanded && feedback.feedback ? (
               <div className={styles.feedbackBlock}>
                 <h4>{t('session.feedback.overall')}</h4>

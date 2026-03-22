@@ -74,11 +74,6 @@ export const useSettingsStore = create((set) => ({
     return response?.data;
   },
 
-  exportData: async () => {
-    const response = await settingsAPI.exportData();
-    return response?.data;
-  },
-
   deleteAccount: async () => {
     const response = await settingsAPI.deleteAccount();
     return response?.data;

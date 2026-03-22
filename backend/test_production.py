@@ -389,11 +389,13 @@ class TestCareerIntelligenceService:
         assert 0.0 <= result["average_score"] <= 100.0
         assert 0.0 <= result["highest_score"] <= 100.0
 
-    def test_skill_breakdown_keys_present(self):
-        from app.services.career_intelligence_service import build_career_intelligence_payload, SKILL_KEYS
+    def test_skill_breakdown_empty_for_no_interviews(self):
+        """New users with no completed interviews should have empty skill_breakdown (no static data)."""
+        from app.services.career_intelligence_service import build_career_intelligence_payload
         result = build_career_intelligence_payload(str(ObjectId()), [])
-        for key in SKILL_KEYS:
-            assert key in result["skill_breakdown"], f"Missing skill key: {key}"
+        # For new users, skill_breakdown should be empty (not hardcoded)
+        assert result["skill_breakdown"] == {}, "skill_breakdown should be empty dict for new users"
+        assert result["completed_interviews"] == 0
 
     def test_recommendations_non_empty_when_completed(self):
         from app.services.career_intelligence_service import build_career_intelligence_payload

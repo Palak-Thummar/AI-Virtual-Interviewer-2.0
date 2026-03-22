@@ -38,10 +38,13 @@ class CodingTestResult(BaseModel):
 
 
 class CodingSubmitResponse(BaseModel):
+    success: bool
     passed: bool
     test_results: List[CodingTestResult]
     execution_time: str
     score: float
+    error_message: str | None = None
+    error: str | None = None
 
 
 PROBLEMS: List[CodingProblem] = [
@@ -221,10 +224,13 @@ async def submit_code(payload: CodingSubmitRequest):
         ]
 
         return {
+            "success": bool(evaluation.get("error") is None),
             "passed": bool(evaluation.get("passed", False)),
             "test_results": normalized_tests,
             "execution_time": f"{round(float(evaluation.get('runtime_ms', 0)) / 1000, 3)}s",
             "score": float(evaluation.get("score", 0)),
+            "error_message": evaluation.get("error_message"),
+            "error": evaluation.get("error"),
         }
     except Exception as exc:
         raise HTTPException(

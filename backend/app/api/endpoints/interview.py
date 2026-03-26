@@ -32,6 +32,70 @@ SUPPORTED_PROGRAMMING_LANGUAGES = {"Python", "Java", "C++", "JavaScript", "Go"}
 SUPPORTED_INTERVIEW_TYPES = {"general", "coding", "voice", "company"}
 
 
+def _normalize_mcq_value(value: str | None) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).strip().lower().split())
+
+
+def _resolve_mcq_option_index(value: str | None, options: List[str]) -> Optional[int]:
+    """
+    Resolve an MCQ answer to a 1-based option index.
+    Supports option text, letter labels (A/B/C...), and numeric labels (1/2/3...).
+    """
+    normalized_value = _normalize_mcq_value(value)
+    if not normalized_value:
+        return None
+
+    normalized_options = [_normalize_mcq_value(option) for option in options]
+
+    for idx, option in enumerate(normalized_options, start=1):
+        if normalized_value == option:
+            return idx
+
+    if normalized_value.isdigit():
+        numeric_idx = int(normalized_value)
+        if 1 <= numeric_idx <= len(normalized_options):
+            return numeric_idx
+
+    compact = normalized_value.replace("option", "").strip()
+    compact = compact.lstrip("(").rstrip(")")
+    compact = compact.rstrip(".")
+
+    if len(compact) == 1 and "a" <= compact <= "z":
+        letter_idx = ord(compact) - ord("a") + 1
+        if 1 <= letter_idx <= len(normalized_options):
+            return letter_idx
+
+    return None
+
+
+def _to_float_score(value: object) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_interview_score(interview: dict, answers: Optional[List[dict]] = None) -> float:
+    """Resolve interview score robustly across historical fields and null values."""
+    for field in ("score", "total_score", "overall_score"):
+        parsed = _to_float_score(interview.get(field))
+        if parsed is not None:
+            return round(parsed, 2)
+
+    answer_items = answers if answers is not None else list(interview.get("answers") or [])
+    if answer_items:
+        values = [_to_float_score(item.get("score")) for item in answer_items if isinstance(item, dict)]
+        clean = [value for value in values if value is not None]
+        if clean:
+            return round(sum(clean) / len(clean), 2)
+
+    return 0.0
+
+
 def _default_jd_analysis(error_message: str = "") -> dict:
     return {
         "ats_score": 50.0,
@@ -81,9 +145,29 @@ def _has_meaningful_jd_analysis(data: dict) -> bool:
     return has_ats and has_details
 
 
+def _jd_analysis_needs_refresh(data: dict) -> bool:
+    if not isinstance(data, dict):
+        return True
+
+    ats_score = float(data.get("ats_score", 0) or 0)
+    matched_count = len(data.get("matched_skills") or [])
+    missing_skills = data.get("missing_skills") or []
+    keyword_gaps = data.get("keyword_gaps") or []
+    missing_count = len(missing_skills)
+
+    # Common bad snapshot pattern: near-zero ATS, zero matches, and mirrored missing/keyword lists.
+    mirrored_lists = bool(missing_skills and keyword_gaps and [str(x).strip().lower() for x in missing_skills] == [str(x).strip().lower() for x in keyword_gaps])
+
+    if matched_count == 0 and missing_count >= 3 and ats_score <= 20:
+        return True
+    if matched_count == 0 and mirrored_lists and ats_score <= 35:
+        return True
+    return False
+
+
 async def _resolve_jd_analysis(interview: dict, resumes_collection) -> dict:
     stored = _get_stored_jd_analysis(interview)
-    if _has_meaningful_jd_analysis(stored):
+    if _has_meaningful_jd_analysis(stored) and not _jd_analysis_needs_refresh(stored):
         return stored
 
     resume = None
@@ -148,6 +232,7 @@ def _normalize_interview_type(interview_type: str | None) -> str:
 
 
 def _serialize_interview(interview: dict) -> dict:
+    resolved_score = _resolve_interview_score(interview)
     return {
         "id": str(interview.get("_id")),
         "user_id": str(interview.get("user_id")) if interview.get("user_id") else None,
@@ -162,8 +247,8 @@ def _serialize_interview(interview: dict) -> dict:
         "current_question_index": int(interview.get("current_question_index", 0) or 0),
         "created_at": interview.get("created_at"),
         "completed_at": interview.get("completed_at"),
-        "score": float(interview.get("score", interview.get("total_score", interview.get("overall_score", 0))) or 0),
-        "total_score": float(interview.get("score", interview.get("total_score", interview.get("overall_score", 0))) or 0),
+        "score": resolved_score,
+        "total_score": resolved_score,
         "skill_scores": interview.get("skill_scores", {}),
         "domain": interview.get("domain", ""),
         "programming_language": interview.get("programming_language"),
@@ -449,6 +534,7 @@ async def submit_answer(
         if stored_answer.get("question_id") == answer_data.question_id:
             return AnswerEvaluationResponse(
                 question_id=stored_answer["question_id"],
+                score=float(stored_answer.get("score", 0) or 0),
                 strengths=stored_answer.get("strengths", []),
                 improvement=stored_answer.get("improvement", stored_answer.get("improvements", [])),
                 ideal_answer=stored_answer.get("ideal_answer", ""),
@@ -470,6 +556,7 @@ async def submit_answer(
 
         return AnswerEvaluationResponse(
             question_id=answer_data.question_id,
+            score=0,
             strengths=[],
             improvement=["Answer was skipped."],
             ideal_answer="",
@@ -490,14 +577,24 @@ async def submit_answer(
     # Evaluate answer
     if is_mcq_answer:
         options = list((question_payload or {}).get("options") or [])
-        correct_answer = str((question_payload or {}).get("correct_answer") or "").strip().lower()
-        normalized_answer = answer_text.strip().lower()
-        passed = bool(correct_answer and normalized_answer == correct_answer)
-        if not passed and options:
-            for option in options:
-                if normalized_answer == str(option).strip().lower() and str(option).strip().lower() == correct_answer:
-                    passed = True
-                    break
+        correct_answer = str((question_payload or {}).get("correct_answer") or "").strip()
+        normalized_answer = _normalize_mcq_value(answer_text)
+        normalized_correct_answer = _normalize_mcq_value(correct_answer)
+
+        selected_idx = _resolve_mcq_option_index(normalized_answer, options)
+        correct_idx = _resolve_mcq_option_index(normalized_correct_answer, options)
+
+        passed = False
+        if selected_idx is not None and correct_idx is not None:
+            passed = selected_idx == correct_idx
+        elif normalized_answer and normalized_correct_answer:
+            passed = normalized_answer == normalized_correct_answer
+
+        resolved_ideal_answer = (
+            options[correct_idx - 1]
+            if correct_idx is not None and 0 < correct_idx <= len(options)
+            else correct_answer
+        )
         evaluation = {
             "score": 100 if passed else 0,
             "feedback": "Correct answer selected." if passed else "Incorrect answer selected.",
@@ -505,7 +602,7 @@ async def submit_answer(
             "weaknesses": [] if passed else ["Need to review the core concept behind this question"],
             "improvements": ["Review this topic and retry similar MCQs to improve speed and accuracy."],
             "improvement_tips": ["Eliminate two incorrect options first, then compare the remaining choices carefully."],
-            "ideal_answer": (question_payload or {}).get("correct_answer", ""),
+            "ideal_answer": resolved_ideal_answer,
         }
     elif is_coding_answer:
         tests = interview.get("coding_tests") or [
@@ -587,6 +684,7 @@ async def submit_answer(
     
     return AnswerEvaluationResponse(
         question_id=answer_data.question_id,
+        score=float(evaluation.get("score", 0) or 0),
         strengths=evaluation.get("strengths", []),
         improvement=evaluation.get("improvement", evaluation.get("improvements", evaluation.get("improvement_tips", []))),
         ideal_answer=evaluation.get("ideal_answer", ""),
@@ -612,9 +710,34 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     if interview.get("status") == "completed":
         jd_analysis = await _resolve_jd_analysis(interview, resumes_collection)
         answers = interview.get("answers", [])
+        resolved_overall_score = _resolve_interview_score(interview, answers)
+
+        interviews_collection.update_one(
+            {"_id": ObjectId(interview_id)},
+            {
+                "$set": {
+                    "score": resolved_overall_score,
+                    "total_score": resolved_overall_score,
+                    "skill_match": {
+                        "matched_skills": jd_analysis.get("matched_skills", []),
+                        "missing_skills": jd_analysis.get("missing_skills", []),
+                        "ats_score": jd_analysis.get("ats_score", 50.0),
+                        "keyword_gaps": jd_analysis.get("keyword_gaps", []),
+                        "experience_gap": jd_analysis.get("experience_gap", ""),
+                    },
+                    "resume_suggestions": {
+                        "improvement_suggestions": jd_analysis.get("improvement_suggestions", []),
+                        "ats_optimization_tips": jd_analysis.get("ats_optimization_tips", []),
+                    },
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+        )
+
         question_scores = [
             AnswerEvaluationResponse(
                 question_id=a.get("question_id", 0),
+                score=float(a.get("score", 0) or 0),
                 strengths=a.get("strengths", []),
                 improvement=a.get("improvement", a.get("improvements", [])),
                 ideal_answer=a.get("ideal_answer", ""),
@@ -624,7 +747,7 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
         ]
         return InterviewResults(
             interview_id=interview_id,
-            overall_score=float(interview.get("score", interview.get("total_score", 0)) or 0),
+            overall_score=resolved_overall_score,
             domain=interview.get("domain", ""),
             job_role=interview.get("role", ""),
             question_scores=question_scores,
@@ -658,7 +781,13 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     resume = None
     resume_id = interview.get("resume_id")
     if resume_id:
-        resume = resumes_collection.find_one({"_id": resume_id})
+        resume_lookup_id = resume_id
+        if isinstance(resume_lookup_id, str):
+            try:
+                resume_lookup_id = ObjectId(resume_lookup_id)
+            except Exception:
+                resume_lookup_id = resume_id
+        resume = resumes_collection.find_one({"_id": resume_lookup_id})
 
     resume_text = resume.get("parsed_text", "") if resume else ""
     jd_text = interview.get("job_description", "")
@@ -756,6 +885,7 @@ async def _submit_and_complete_interview(interview_id: str, current_user_id: str
     question_scores = [
         AnswerEvaluationResponse(
             question_id=a.get("question_id", 0),
+            score=float(a.get("score", 0) or 0),
             strengths=a.get("strengths", []),
             improvement=a.get("improvement", a.get("improvements", [])),
             ideal_answer=a.get("ideal_answer", ""),

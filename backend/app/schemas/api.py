@@ -99,6 +99,7 @@ class AnswerSubmission(BaseModel):
 class AnswerEvaluationResponse(BaseModel):
     """Response after evaluating answer."""
     question_id: int
+    score: float = 0.0
     strengths: List[str] = []
     improvement: List[str] = []
     ideal_answer: str = ""

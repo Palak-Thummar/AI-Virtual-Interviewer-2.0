@@ -35,6 +35,24 @@ DEFAULT_SOFTWARE_ENGINEERING_SKILLS = [
     "docker", "kubernetes", "aws", "system design", "rest", "git", "ci/cd", "testing",
 ]
 
+TERM_ALIASES = {
+    "javascript": ["js", "node js", "nodejs"],
+    "typescript": ["ts"],
+    "node.js": ["nodejs", "node js"],
+    "next.js": ["nextjs", "next js"],
+    "c++": ["cpp"],
+    "c#": ["csharp", ".net", "dotnet"],
+    "ci/cd": ["cicd", "ci cd", "continuous integration", "continuous delivery"],
+    "github actions": ["github action"],
+    "postgresql": ["postgres", "postgre"],
+    "unit testing": ["unit tests", "unittest"],
+    "integration testing": ["integration tests"],
+    "machine learning": ["ml"],
+    "deep learning": ["dl"],
+    "kubernetes": ["k8s"],
+    "spring": ["spring boot", "springboot"],
+}
+
 
 async def analyze_resume_against_jd(
     resume_text: str,
@@ -127,6 +145,12 @@ Rules:
         result["keyword_gaps"] = _merge_unique_strings(result.get("keyword_gaps", []), fallback["keyword_gaps"], limit=20)
         result = _enforce_jd_scope(result, resume_text, effective_jd)
 
+        # Blend model score with deterministic coverage to avoid extreme under-scoring.
+        ai_ats = _normalize_ats_score(result.get("ats_score", 50.0))
+        coverage = _coverage_from_skill_lists(result.get("matched_skills", []), result.get("missing_skills", []))
+        heuristic_ats = 35.0 + (coverage * 60.0)
+        result["ats_score"] = round((ai_ats * 0.6) + (heuristic_ats * 0.4), 2)
+
         print(f"[JD Analyzer] Analysis complete. Final ATS Score: {result.get('ats_score')}%")
         return _validate_analysis_response(result)
         
@@ -138,10 +162,13 @@ Rules:
         failed_result["missing_skills"] = _merge_unique_strings(manual.get("missing_skills", []), fallback.get("missing_skills", []), limit=20)
         failed_result["keyword_gaps"] = _merge_unique_strings(manual.get("keyword_gaps", []), fallback.get("keyword_gaps", []), limit=20)
         failed_result = _enforce_jd_scope(failed_result, resume_text, effective_jd)
+        coverage = _coverage_from_skill_lists(failed_result.get("matched_skills", []), failed_result.get("missing_skills", []))
+        fallback_heuristic = 35.0 + (coverage * 60.0)
         failed_result["ats_score"] = max(
-            float(fallback.get("ats_score", 0.0) or 0.0),
-            float(manual.get("ats_score", 0.0) or 0.0),
-            float(failed_result.get("ats_score", 50.0) or 50.0),
+            _normalize_ats_score(fallback.get("ats_score", 0.0)),
+            _normalize_ats_score(manual.get("ats_score", 0.0)),
+            _normalize_ats_score(failed_result.get("ats_score", 50.0)),
+            fallback_heuristic,
         )
         return _validate_analysis_response(failed_result)
 
@@ -209,7 +236,7 @@ def _enforce_jd_scope(data: dict, resume_text: str, job_description: str) -> dic
     if not missing:
         missing = [jd_norm_to_term[key] for key in jd_norm if key not in resume_norm]
     if not keyword_gaps:
-        keyword_gaps = list(missing)
+        keyword_gaps = _rank_keyword_gaps_by_jd_priority(missing, job_description)
 
     data["matched_skills"] = _merge_unique_strings(matched, [], limit=20)
     data["missing_skills"] = _merge_unique_strings(missing, [], limit=20)
@@ -594,8 +621,15 @@ def _extract_technical_terms_from_text(text: str) -> List[str]:
         if not token:
             continue
 
-        pattern = r"(?<!\w)" + re.escape(token) + r"(?!\w)"
-        if re.search(pattern, content):
+        candidates = [token] + [alias.lower().strip() for alias in TERM_ALIASES.get(token, []) if str(alias).strip()]
+        matched = False
+        for candidate in candidates:
+            pattern = r"(?<!\w)" + re.escape(candidate) + r"(?!\w)"
+            if re.search(pattern, content):
+                matched = True
+                break
+
+        if matched:
             normalized = _normalize_term(token)
             if normalized in seen:
                 continue
@@ -626,12 +660,74 @@ def _build_fallback_skill_analysis(resume_text: str, job_description: str) -> di
     else:
         heuristic_ats = 50.0
 
+    keyword_gaps = _rank_keyword_gaps_by_jd_priority(missing, job_description)
+
     return {
         "ats_score": min(max(float(heuristic_ats), 0.0), 100.0),
         "matched_skills": matched[:20],
         "missing_skills": missing[:20],
-        "keyword_gaps": missing[:20]
+        "keyword_gaps": keyword_gaps[:20]
     }
+
+
+def _rank_keyword_gaps_by_jd_priority(missing_terms: List[str], job_description: str) -> List[str]:
+    content = str(job_description or "").lower()
+    scored = []
+
+    for term in missing_terms or []:
+        token = _normalize_term(term)
+        if not token:
+            continue
+
+        aliases = [token] + [_normalize_term(alias) for alias in TERM_ALIASES.get(token, []) if _normalize_term(alias)]
+        count = 0
+        for alias in aliases:
+            pattern = r"(?<!\w)" + re.escape(alias) + r"(?!\w)"
+            count = max(count, len(re.findall(pattern, content)))
+
+        # Bias toward concrete technical keywords likely expected by ATS matchers.
+        score = (count * 10) + min(len(token), 20)
+        scored.append((score, term))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    ordered = [term for _, term in scored]
+    return _merge_unique_strings(ordered, [], limit=20)
+
+
+def _normalize_ats_score(value: object) -> float:
+    """Normalize ATS score into a 0..100 percentage.
+
+    Accepts forms like: 0.72, "72", "72%", or invalid values.
+    """
+    if value is None:
+        return 50.0
+
+    raw = str(value).strip()
+    if not raw:
+        return 50.0
+
+    if raw.endswith("%"):
+        raw = raw[:-1].strip()
+
+    try:
+        parsed = float(raw)
+    except (TypeError, ValueError):
+        return 50.0
+
+    # Some model outputs return fractions (0.0-1.0) despite instructions.
+    if 0.0 <= parsed <= 1.0:
+        parsed *= 100.0
+
+    return min(max(parsed, 0.0), 100.0)
+
+
+def _coverage_from_skill_lists(matched_skills: List[str], missing_skills: List[str]) -> float:
+    matched = len(matched_skills or [])
+    missing = len(missing_skills or [])
+    total = matched + missing
+    if total <= 0:
+        return 0.0
+    return matched / total
 
 
 def _parse_json_response(response: str) -> dict:
@@ -706,13 +802,7 @@ def _validate_analysis_response(data: dict) -> dict:
     
     # Ensure types are correct - handle ATS score conversion with better error handling
     ats_score_raw = result.get("ats_score", 50)
-    try:
-        ats_score_float = float(ats_score_raw) if ats_score_raw is not None else 50.0
-        # Clamp to 0-100
-        result["ats_score"] = min(max(ats_score_float, 0.0), 100.0)
-    except (ValueError, TypeError) as e:
-        print(f"[Validator] ERROR converting ATS score: {str(e)}. Raw value: {ats_score_raw}")
-        result["ats_score"] = 50.0
+    result["ats_score"] = _normalize_ats_score(ats_score_raw)
     
     result["matched_skills"] = list(result.get("matched_skills", []))[:20]
     result["missing_skills"] = list(result.get("missing_skills", []))[:20]
